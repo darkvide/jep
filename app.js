@@ -119,7 +119,7 @@ const idsProductosPromise = Promise.all(promisesSql).then(results => {
         idStock.push("'"+String(sqlServerData[h].codigo).trim()+"'");
         
     }
-    /** Esta es la estructura de los datos para sql server te sirve? simon 
+    /** 
      * 5470 en total
      * [ { idProductoStock: '0306051501',
       stock: 10,
