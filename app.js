@@ -34,30 +34,30 @@ var config_mysql = {
     database: "prestatienda"
 };
 
-const configurarCron='*/8 * * * *';
+const configurarCron = '*/8 * * * *';
 
 var connection;
 
 function handleDisconnect() {
-  connection = mysql.createConnection(config_mysql_prod); // Recreate the connection, since
-                                                  // the old one cannot be reused.
+    connection = mysql.createConnection(config_mysql_prod); // Recreate the connection, since
+    // the old one cannot be reused.
 
-  connection.connect(function(err) {              // The server is either down
-    if(err) {                                     // or restarting (takes a while sometimes).
-      console.log('error when connecting to db:', err);
-      setTimeout(handleDisconnect, 20000); // We introduce a delay before attempting to reconnect,
-      // cada 20 segundos se conecta y se desconec osea eso hace siempre y cuando encuentre un error de desconexion
-    }                                     // to avoid a hot loop, and to allow our node script to
-  });                                     // process asynchronous requests in the meantime.
-                                          // If you're also serving http, display a 503 error.
-  connection.on('error', function(err) {
-    console.log('db error', err);
-    if(err.code === 'PROTOCOL_CONNECTION_LOST') { // Connection to the MySQL server is usually
-      handleDisconnect();                         // lost due to either server restart, or a
-    } else {                                      // connnection idle timeout (the wait_timeout
-      throw err;                                  // server variable configures this)
-    }
-  });
+    connection.connect(function(err) { // The server is either down
+        if (err) { // or restarting (takes a while sometimes).
+            console.log('error when connecting to db:', err);
+            setTimeout(handleDisconnect, 20000); // We introduce a delay before attempting to reconnect,
+            // cada 20 segundos se conecta y se desconec osea eso hace siempre y cuando encuentre un error de desconexion
+        } // to avoid a hot loop, and to allow our node script to
+    }); // process asynchronous requests in the meantime.
+    // If you're also serving http, display a 503 error.
+    connection.on('error', function(err) {
+        console.log('db error', err);
+        if (err.code === 'PROTOCOL_CONNECTION_LOST') { // Connection to the MySQL server is usually
+            handleDisconnect(); // lost due to either server restart, or a
+        } else { // connnection idle timeout (the wait_timeout
+            throw err; // server variable configures this)
+        }
+    });
 }
 
 handleDisconnect();
@@ -72,7 +72,7 @@ const sqlServerPromise = new Promise((resolve, reject) => {
         return pool.request().query(`
         select k.codart as codigo, ROUND(SUM(k.cantot * (44 - ASCII(t.sigdoc))), 2) AS existencia 
         from kardex k, kardex_tipo_doc t 
-        where k.tipdoc = t.tipdoc and k.codemp=16 GROUP BY k.codemp, k.codalm, k.codart order by 1;`)// esto trae productos trae los id y el stock
+        where k.tipdoc = t.tipdoc and k.codemp=16 GROUP BY k.codemp, k.codalm, k.codart order by 1;`) // esto trae productos trae los id y el stock
     }).then(result => {
         sql.close();
         return resolve(result.recordset);
@@ -84,14 +84,14 @@ const sqlServerPromise = new Promise((resolve, reject) => {
 
 const sqlServerProducts = new Promise((resolve, reject) => {
     new sql.ConnectionPool(config_sql).connect().then(pool => {
-            return pool.request().query(`select codart,prec01,prec02,prec03,prec04 from articulos where codemp=16`)
-        }).then(result => {
-            sql.close();
-            return resolve(result.recordset);
-        }).catch(err => {
-            res.status(500).send({ message: "${err}" })
-            sql.close();
-        });
+        return pool.request().query(`select codart,prec01,prec02,prec03,prec04 from articulos where codemp=16`)
+    }).then(result => {
+        sql.close();
+        return resolve(result.recordset);
+    }).catch(err => {
+        res.status(500).send({ message: "${err}" })
+        sql.close();
+    });
 });
 
 
@@ -111,15 +111,15 @@ const idsProductosPromise = Promise.all(promisesSql).then(results => {
     const preciosArray = [];
 
     for (let h = 0; h < totalRecords; h++) {
-            
+
         datosStock.push({
-            'idProductoStock' : String(sqlServerData[h].codigo).trim(),
-            'stock' : sqlServerData[h].existencia,
+            'idProductoStock': String(sqlServerData[h].codigo).trim(),
+            'stock': sqlServerData[h].existencia,
             'precios': sqlServerDataProducts.find(precio => String(precio.codart).trim() === String(sqlServerData[h].codigo).trim())
-        
+
         });
-        idStock.push("'"+String(sqlServerData[h].codigo).trim()+"'");
-        
+        idStock.push("'" + String(sqlServerData[h].codigo).trim() + "'");
+
     }
     /** Esta es la estructura de los datos para sql server te sirve? simon 
      * 5470 en total
@@ -139,10 +139,10 @@ const idsProductosPromise = Promise.all(promisesSql).then(results => {
 const mysqlProductPromise = new Promise((resolve, reject) => {
     // aqui capturo los ids ese idS
     var stockArray = [];
-     return connection.query(`
+    return connection.query(`
         SELECT twofowg1_jepweb.ps_product.id_product,twofowg1_jepweb.ps_product.reference 
         FROM twofowg1_jepweb.ps_product 
-        ` , (error_stock, result_stock) => {
+        `, (error_stock, result_stock) => {
         if (!error_stock) {
             return resolve(JSON.parse(JSON.stringify(result_stock)));
         }
@@ -150,26 +150,26 @@ const mysqlProductPromise = new Promise((resolve, reject) => {
     });
 });
 
-const dataProductosPromise = Promise.all([mysqlProductPromise, idsProductosPromise]).then(result =>{
-    const productosMysql = result[0]; 
+const dataProductosPromise = Promise.all([mysqlProductPromise, idsProductosPromise]).then(result => {
+    const productosMysql = result[0];
     const productosSqlServer = result[1];
     // ahora unir la info de sql server con mysql
     const productos = productosSqlServer.map(producto => {
         return {
             ...producto,
             mysql: productosMysql.find(pm => {
-               return pm.reference.replace(/ /ig, '') == producto.idProductoStock.replace(/ /ig, '');
+                return pm.reference.replace(/ /ig, '') == producto.idProductoStock.replace(/ /ig, '');
             })
-       };
+        };
     });
-   return (productos, productos.filter(p => p.mysql));
+    return (productos, productos.filter(p => p.mysql));
 });
 
 // aqui a actualizar todos los productos
 cron.schedule(configurarCron, () => {
     dataProductosPromise.then(productos => {
         //update stock
-        productos.forEach(producto => { 
+        productos.forEach(producto => {
             connection.query(`UPDATE twofowg1_jepweb.ps_stock_available, twofowg1_jepweb.ps_product , twofowg1_jepweb.ps_product_shop
             SET twofowg1_jepweb.ps_stock_available.quantity = ${producto.stock},twofowg1_jepweb.ps_product.price = ${producto.precios.prec01},twofowg1_jepweb.ps_product_shop.price = ${producto.precios.prec01}
             WHERE 
@@ -177,7 +177,7 @@ cron.schedule(configurarCron, () => {
             AND twofowg1_jepweb.ps_product.id_product=twofowg1_jepweb.ps_stock_available.id_product
             AND twofowg1_jepweb.ps_stock_available.id_product = ${producto.mysql.id_product};`, (error_stock2, result_stock2) => {
                 if (!error_stock2) {
-                    console.log('actualizado stock '+producto.mysql.id_product);
+                    console.log('actualizado stock ' + producto.mysql.id_product);
                 } else {
                     console.log(error_stock2);
                 }
@@ -192,15 +192,13 @@ cron.schedule(configurarCron, () => {
             (${producto.mysql.id_product},1,1,81,6,${producto.precios.prec04},"amount")
             `, (error_stock2, result_stock2) => {
                 if (!error_stock2) {
-                    console.log('actualizado precio1 '+producto.mysql.id_product);
+                    console.log('actualizado precio1 ' + producto.mysql.id_product);
                 } else {
                     console.log(error_stock2);
                 }
             });
-            
+
         });
         //update precios
     });
 });
-
-
