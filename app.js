@@ -7,7 +7,7 @@ var port = process.env.PORT || 5000;
 
 var config_sql = {
     user: 'darkvid',
-    password: '1234',
+    password: '12345',
     server: '127.0.0.1', // You can use 'localhost\\instance' to connect to named instance
     database: 'Kdbs_jep',
     driver: 'tedious',
@@ -23,9 +23,9 @@ var config_sql = {
 };
 var config_mysql_prod = {
     host: "162.241.224.119",
-    user: "twofowg1_WPYQG",
-    password: "247Ec!!!!",
-    database: "twofowg1_jep"
+    user: "twofowg1_darkvid",
+    password: "De12345678",
+    database: "twofowg1_jepnode"
 };
 var config_mysql = {
     host: "localhost",
@@ -34,7 +34,7 @@ var config_mysql = {
     database: "prestatienda"
 };
 
-const configurarCron='*/2 * * * *';
+const configurarCron='*/8 * * * *';
 
 var connection;
 
@@ -94,6 +94,8 @@ const sqlServerProducts = new Promise((resolve, reject) => {
         });
 });
 
+
+
 const promisesSql = [sqlServerPromise, sqlServerProducts];
 
 const idsProductosPromise = Promise.all(promisesSql).then(results => {
@@ -119,7 +121,7 @@ const idsProductosPromise = Promise.all(promisesSql).then(results => {
         idStock.push("'"+String(sqlServerData[h].codigo).trim()+"'");
         
     }
-    /** 
+    /** Esta es la estructura de los datos para sql server te sirve? simon 
      * 5470 en total
      * [ { idProductoStock: '0306051501',
       stock: 10,
@@ -135,9 +137,10 @@ const idsProductosPromise = Promise.all(promisesSql).then(results => {
 });
 
 const mysqlProductPromise = new Promise((resolve, reject) => {
+    // aqui capturo los ids ese idS
     var stockArray = [];
      return connection.query(`
-        SELECT twofowg1_jepweb.ps_product.id_product,twofowg1_jepweb.ps_product.supplier_reference 
+        SELECT twofowg1_jepweb.ps_product.id_product,twofowg1_jepweb.ps_product.reference 
         FROM twofowg1_jepweb.ps_product 
         ` , (error_stock, result_stock) => {
         if (!error_stock) {
@@ -151,14 +154,14 @@ const dataProductosPromise = Promise.all([mysqlProductPromise, idsProductosPromi
     const productosMysql = result[0]; 
     const productosSqlServer = result[1];
     // ahora unir la info de sql server con mysql
-   const productos = productosSqlServer.map(producto => {
-       return {
-           ...producto,
-           mysql: productosMysql.find(pm => {
-               return pm.supplier_reference.replace(/ /ig, '') == producto.idProductoStock.replace(/ /ig, '');
+    const productos = productosSqlServer.map(producto => {
+        return {
+            ...producto,
+            mysql: productosMysql.find(pm => {
+               return pm.reference.replace(/ /ig, '') == producto.idProductoStock.replace(/ /ig, '');
             })
        };
-   });
+    });
    return (productos, productos.filter(p => p.mysql));
 });
 
@@ -189,7 +192,7 @@ cron.schedule(configurarCron, () => {
             (${producto.mysql.id_product},1,1,81,6,${producto.precios.prec04},"amount")
             `, (error_stock2, result_stock2) => {
                 if (!error_stock2) {
-                    console.log('actualizado los precios '+producto.mysql.id_product);
+                    console.log('actualizado precio1 '+producto.mysql.id_product);
                 } else {
                     console.log(error_stock2);
                 }
@@ -200,6 +203,4 @@ cron.schedule(configurarCron, () => {
     });
 });
 
-var server = app.listen(port, function () {
-    console.log('Conected...');
-});
+
