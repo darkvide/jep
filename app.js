@@ -156,23 +156,21 @@ const dataProductosPromise = Promise.all([mysqlProductPromise, idsProductosPromi
 });
 const dataClientesPromise = Promise.all([mysqlClientPromise, idsProductosPromise]).then(result => {
     const clientesMysql = result[0];
-    console.log(clientesMysql);
-    return;
-    const productosSqlServer = result[1]['datosStock'];
+    const productosSqlServer = result[1]['sqlServerDataClients'];
     // ahora unir la info de sql server con mysql
-    const productos = productosSqlServer.map(producto => {
+    const clientesArray = productosSqlServer.map(clientes => {
         return {
-            ...producto,
-            mysql: productosMysql.find(pm => {
-                return pm.supplier_reference.replace(/ /ig, '') == producto.idProductoStock.replace(/ /ig, '');
+            ...clientes,
+            mysql: clientesMysql.find(cm => {
+                return cm.email == clientes.email;
             })
         };
     });
-    return (productos, productos.filter(p => p.mysql));
+    return (clientesArray, clientesArray);
 });
 
 // aqui a actualizar todos los productos
-/*
+
 cron.schedule(configurarCron, () => {
     dataProductosPromise.then(productos => {
         //update stock
@@ -184,7 +182,7 @@ cron.schedule(configurarCron, () => {
             AND twofowg1_jepnode.ps_product.id_product=twofowg1_jepnode.ps_stock_available.id_product
             AND twofowg1_jepnode.ps_stock_available.id_product = ${producto.mysql.id_product};`, (error_stock2, result_stock2) => {
                 if (!error_stock2) {
-                    console.log(producto.stock,producto.precios.prec01,producto.mysql.id_product);
+                    console.log(producto.stock, producto.precios.prec01, producto.mysql.id_product);
                     //console.log('actualizado stock ' + producto.mysql.id_product);
                 } else {
                     console.log(error_stock2);
@@ -212,4 +210,53 @@ cron.schedule(configurarCron, () => {
 });
 
 // aqui a actualizar todos los clientes
-*/
+
+
+/*dataClientesPromise.then(clientes => {
+    //update stock
+    clientes.forEach(cliente => {
+        const hoy = '2019-05-21 14:54:31';
+        if (cliente.mysql != null || cliente.mysql != undefined) {
+            /*connection.query(`UPDATE twofowg1_jepnode.ps_stock_available, twofowg1_jepnode.ps_product , twofowg1_jepnode.ps_product_shop
+            SET twofowg1_jepnode.ps_product.quantity = ${producto.stock},twofowg1_jepnode.ps_stock_available.quantity = ${producto.stock},twofowg1_jepnode.ps_product.price = ${producto.precios.prec01},twofowg1_jepnode.ps_product_shop.price = ${producto.precios.prec01}
+            WHERE 
+            twofowg1_jepnode.ps_product.id_product=twofowg1_jepnode.ps_product_shop.id_product
+            AND twofowg1_jepnode.ps_product.id_product=twofowg1_jepnode.ps_stock_available.id_product
+            AND twofowg1_jepnode.ps_stock_available.id_product = ${producto.mysql.id_product};`, (error_stock2, result_stock2) => {
+                if (!error_stock2) {
+                    console.log(producto.stock, producto.precios.prec01, producto.mysql.id_product);
+                    //console.log('actualizado stock ' + producto.mysql.id_product);
+                } else {
+                    console.log(error_stock2);
+                }
+            });
+        } else {
+            connection.query(`INSERT INTO twofowg1_jepnode.ps_customer (twofowg1_jepnode.ps_customer.id_shop_group,twofowg1_jepnode.ps_customer.id_shop,twofowg1_jepnode.ps_customer.id_gender,twofowg1_jepnode.ps_customer.id_default_group,twofowg1_jepnode.ps_customer.id_lang,twofowg1_jepnode.ps_customer.id_risk,twofowg1_jepnode.ps_customer.firstname,twofowg1_jepnode.ps_customer.lastname,twofowg1_jepnode.ps_customer.email,twofowg1_jepnode.ps_customer.passwd,twofowg1_jepnode.ps_customer.date_add,twofowg1_jepnode.ps_customer.date_upd) VALUES (1,1,0,${cliente.tipind},1,0,'${cliente.nomcli}','${cliente.nomcli}','${cliente.email}',"$2y$10$FOnZ7jFGGelEUD7GjjEJNey6Vj9CZ0sm4QnOA1lNellHXvFjS4Z.6","` + hoy + `","` + hoy + `");
+            `, (error_customer, result_customer) => {
+                if (!error_customer) {
+                    connection.query(`INSERT INTO twofowg1_jepnode.ps_customer_group (twofowg1_jepnode.ps_customer_group.id_customer,twofowg1_jepnode.ps_customer_group.id_group) VALUES (${result_customer.insertId},${cliente.tipind})
+                        `, (error_customer_group, result_customer_group) => {
+                        if (!error_customer_group) {
+                            console.log('insertado grupo');
+                        } else {
+                            console.log(error_customer_group);
+                        }
+                    });
+                    connection.query(`
+                        INSERT INTO twofowg1_jepnode.ps_address (twofowg1_jepnode.ps_address.id_country,twofowg1_jepnode.ps_address.id_state,twofowg1_jepnode.ps_address.id_customer,twofowg1_jepnode.ps_address.alias,twofowg1_jepnode.ps_address.company,twofowg1_jepnode.ps_address.lastname,twofowg1_jepnode.ps_address.firstname,twofowg1_jepnode.ps_address.address1,twofowg1_jepnode.ps_address.address2,twofowg1_jepnode.ps_address.city,twofowg1_jepnode.ps_address.phone,twofowg1_jepnode.ps_address.dni,twofowg1_jepnode.ps_address.date_add,twofowg1_jepnode.ps_address.date_upd) VALUES (81,20,'${result_customer.insertId}','Delivery address','${cliente.nomcli}','estrella','david','${cliente.dircli}+${cliente.dirnum}','${cliente.dirint}','${cliente.ciucli}',${cliente.telcel},${cliente.rucced},'` + hoy + `','` + hoy + `')
+                        `, (error_adress, result_adress) => {
+                        if (!error_adress) {
+                            console.log('insertado direccion');
+                        } else {
+                            console.log(error_adress);
+                        }
+                    });
+                } else {
+                    console.log(error_customer);
+                }
+            });
+
+        }
+    });*
+    //update precios
+});*/
