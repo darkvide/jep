@@ -34,14 +34,12 @@ var config_mysql = {
     database: "prestatienda"
 };
 
-const configurarCron = '*/1 * * * *';
+const configurarCron = '*/5 * * * *';
 
 var connection;
 
 function handleDisconnect() {
-    connection = mysql.createConnection(config_mysql_prod); // Recreate the connection, since
-    // the old one cannot be reused.
-
+    connection = mysql.createConnection(config_mysql_prod);
     connection.connect(function(err) { // The server is either down
         if (err) { // or restarting (takes a while sometimes).
             console.log('error when connecting to db:', err);
@@ -66,7 +64,6 @@ console.group('corriendo');
 
 const sqlServerProducts = new Promise((resolve, reject) => {
     new sql.ConnectionPool(config_sql).connect().then(pool => {
-        //return pool.request().query(`select codart,prec01,prec02,prec03,prec04 from articulos where codemp=16`)
         return pool.request().query(`SELECT codart,codalt,desart,nomart,nomcla,nomfam,marca,coduni,poriva,prec01,prec02,prec03,prec04,codpro,nompro,codfab,ultcos,cospro,exiact FROM kdbs_jep.dbo.web_articulos`)
     }).then(result => {
         sql.close();
@@ -99,9 +96,7 @@ const idsProductosPromise = Promise.all(promisesSql).then(results => {
     const sqlServerDataProducts = results[0];
     const sqlServerDataClients = results[1];
     const totalRecordsProducts = sqlServerDataProducts.length;
-    const totalRecordsClients = sqlServerDataClients.length;
     const datosStock = [];
-    const datosClientes = [];
 
     for (let h = 0; h < totalRecordsProducts; h++) {
 
@@ -182,8 +177,7 @@ cron.schedule(configurarCron, () => {
             AND twofowg1_jepnode.ps_product.id_product=twofowg1_jepnode.ps_stock_available.id_product
             AND twofowg1_jepnode.ps_stock_available.id_product = ${producto.mysql.id_product};`, (error_stock2, result_stock2) => {
                 if (!error_stock2) {
-                    console.log(producto.stock, producto.precios.prec01, producto.mysql.id_product);
-                    //console.log('actualizado stock ' + producto.mysql.id_product);
+                    //console.log(producto.stock, producto.precios.prec01, producto.mysql.id_product);
                 } else {
                     console.log(error_stock2);
                 }
