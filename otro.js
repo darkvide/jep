@@ -59,6 +59,7 @@ function handleDisconnect() {
 
 handleDisconnect();
 
+
 const sqlServerProducts = new Promise((resolve, reject) => {
     new sql.ConnectionPool(config_sql).connect().then(pool => {
         return pool.request().query(`SELECT codart,codalt,desart,nomart,nomcla,nomfam,marca,coduni,poriva,prec01,prec02,prec03,prec04,codpro,nompro,codfab,ultcos,cospro,exiact FROM kdbs_jep.dbo.web_articulos`)
@@ -132,7 +133,14 @@ function actualizarProductos() {
                 AND twofowg1_jepnode.ps_product.id_product=twofowg1_jepnode.ps_stock_available.id_product
                 AND twofowg1_jepnode.ps_stock_available.id_product = ${producto.mysql.id_product};`, (error_stock2, result_stock2) => {
                     if (!error_stock2) {
+                        console.log(producto.mysql.id_product);
                         //console.log(producto.stock, producto.precios.prec01, producto.mysql.id_product);
+                        /*console.log(`UPDATE twofowg1_jepnode.ps_stock_available, twofowg1_jepnode.ps_product , twofowg1_jepnode.ps_product_shop
+                        SET twofowg1_jepnode.ps_product.quantity = ${producto.exiact},twofowg1_jepnode.ps_stock_available.quantity = ${producto.exiact},twofowg1_jepnode.ps_product.price = ${producto.prec01},twofowg1_jepnode.ps_product_shop.price = ${producto.prec01}
+                        WHERE 
+                        twofowg1_jepnode.ps_product.id_product=twofowg1_jepnode.ps_product_shop.id_product
+                        AND twofowg1_jepnode.ps_product.id_product=twofowg1_jepnode.ps_stock_available.id_product
+                        AND twofowg1_jepnode.ps_stock_available.id_product = ${producto.mysql.id_product};`);*/
                     } else {
                         console.log(error_stock2);
                     }
@@ -157,24 +165,24 @@ function actualizarProductos() {
         });
         //update precios
         /**/
-        const clientesArray = dataClientesSql.map(clientes => {
+        /*const clientesArray = dataClientesSql.map(clientes => {
             return {
                 ...clientes,
                 mysql: dataClientesMysql.find(cm => {
                     return cm.email == clientes.email;
                 })
             };
-        });
+        });*/
 
         //update stock
-        connection.end();
+        //connection.end();
         return { dataProductosSql };
 
     });
     return dataProductosPromise;
 }
 cron.schedule(configurarCron, () => {
-    const data = actualizarProductos().then(data);
-    console.log(data);
+    const data_1 = actualizarProductos().then();
+    console.log(data_1);
 
 });
