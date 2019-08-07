@@ -4,6 +4,7 @@ var port = process.env.PORT || 5000;
 var sql = require('mssql');
 const csv = require('fast-csv');
 const fs = require('fs');
+var Client = require('ftp');
 
 const config_sql = {
     user: 'darkvid',
@@ -194,10 +195,22 @@ function generateCsv(columns, rows, fileName) {
 
         writableStream.on('finish', () => {
             resolve({ fileName });
+            var c = new Client();
+            c.on('ready', function() {
+                c.put(fileName, fileName, function(err) {
+                if (err) throw err;
+                c.end();
+                });
+            });
+            // connect to localhost:21 as anonymous
+            c.connect();
         });
 
         writableStream.on('error', (err) => {
             reject(err);
         });
     });
+    
+    
+   
 }

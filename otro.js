@@ -7,7 +7,7 @@ var port = process.env.PORT || 5000;
 
 const config_sql = {
     user: 'darkvid',
-    password: '1234',
+    password: '12345',
     server: '127.0.0.1', // You can use 'localhost\\instance' to connect to named instance
     database: 'Kdbs_jep',
     driver: 'tedious',
@@ -21,11 +21,17 @@ const config_sql = {
         max: 100
     }
 };
-var config_mysql_prod = {
+/*var config_mysql_prod = {
     host: "162.241.224.119",
     user: "twofowg1_darkvid",
     password: "De12345678",
     database: "twofowg1_jepnode"
+};*/
+var config_mysql_prod = {
+    host: "162.241.224.119",
+    user: "twofowg1_WPYQG",
+    password: "247Ec!!!!",
+    database: "twofowg1_jepweb"
 };
 var config_mysql = {
     host: "localhost",
@@ -62,7 +68,10 @@ handleDisconnect();
 
 const sqlServerProducts = new Promise((resolve, reject) => {
     new sql.ConnectionPool(config_sql).connect().then(pool => {
-        return pool.request().query(`SELECT codart,codalt,desart,nomart,nomcla,nomfam,marca,coduni,poriva,prec01,prec02,prec03,prec04,codpro,nompro,codfab,ultcos,cospro,exiact FROM kdbs_jep.dbo.web_articulos`)
+        return pool.request().query(`SELECT codart,codalt,desart,nomart,nomcla,nomfam,marca,coduni,poriva,prec01,prec02,prec03,prec04,codpro,nompro,codfab,ultcos,cospro,exiact,estado
+        ,modbas
+        ,codmod
+        ,numbul FROM kdbs_jep.dbo.web_articulos where estado!=3`)
     }).then(result => {
         sql.close();
         return resolve(result.recordset);
@@ -86,8 +95,8 @@ const sqlServeClients = new Promise((resolve, reject) => {
 
 const mysqlProductPromise = new Promise((resolve, reject) => {
     return connection.query(`
-        SELECT twofowg1_jepnode.ps_product.id_product,twofowg1_jepnode.ps_product.supplier_reference 
-        FROM twofowg1_jepnode.ps_product 
+        SELECT twofowg1_jepweb.ps_product.id_product,twofowg1_jepweb.ps_product.supplier_reference 
+        FROM twofowg1_jepweb.ps_product 
         `, (error_stock, result_stock) => {
         if (!error_stock) {
             return resolve(JSON.parse(JSON.stringify(result_stock)));
@@ -99,7 +108,7 @@ const mysqlProductPromise = new Promise((resolve, reject) => {
 const mysqlClientPromise = new Promise((resolve, reject) => {
     return connection.query(`
         SELECT pc.email 
-        from twofowg1_jepnode.ps_customer pc
+        from twofowg1_jepweb.ps_customer pc
         `, (error_clientes, result_clientes) => {
         if (!error_clientes) {
             return resolve(JSON.parse(JSON.stringify(result_clientes)));
@@ -126,28 +135,28 @@ function actualizarProductos() {
         /**/
         productos.forEach(producto => {
             if (producto.mysql != null || producto.mysql != undefined) {
-                connection.query(`UPDATE twofowg1_jepnode.ps_stock_available, twofowg1_jepnode.ps_product , twofowg1_jepnode.ps_product_shop
-                SET twofowg1_jepnode.ps_product.quantity = ${producto.exiact},twofowg1_jepnode.ps_stock_available.quantity = ${producto.exiact},twofowg1_jepnode.ps_product.price = ${producto.prec01},twofowg1_jepnode.ps_product_shop.price = ${producto.prec01}
+                connection.query(`UPDATE twofowg1_jepweb.ps_stock_available, twofowg1_jepweb.ps_product, twofowg1_jepweb.ps_product_shop
+                SET twofowg1_jepweb.ps_product.quantity = ${producto.exiact},twofowg1_jepweb.ps_product.unity  = ${producto.numbul},twofowg1_jepweb.ps_stock_available.quantity = ${producto.exiact},twofowg1_jepweb.ps_product.price = ${producto.prec01},twofowg1_jepweb.ps_product_shop.price = ${producto.prec01}
                 WHERE 
-                twofowg1_jepnode.ps_product.id_product=twofowg1_jepnode.ps_product_shop.id_product
-                AND twofowg1_jepnode.ps_product.id_product=twofowg1_jepnode.ps_stock_available.id_product
-                AND twofowg1_jepnode.ps_stock_available.id_product = ${producto.mysql.id_product};`, (error_stock2, result_stock2) => {
+                twofowg1_jepweb.ps_product.id_product=twofowg1_jepweb.ps_product_shop.id_product
+                AND twofowg1_jepweb.ps_product.id_product=twofowg1_jepweb.ps_stock_available.id_product
+                AND twofowg1_jepweb.ps_stock_available.id_product = ${producto.mysql.id_product};`, (error_stock2, result_stock2) => {
                     if (!error_stock2) {
                         console.log(producto.mysql.id_product);
                         //console.log(producto.stock, producto.precios.prec01, producto.mysql.id_product);
-                        /*console.log(`UPDATE twofowg1_jepnode.ps_stock_available, twofowg1_jepnode.ps_product , twofowg1_jepnode.ps_product_shop
-                        SET twofowg1_jepnode.ps_product.quantity = ${producto.exiact},twofowg1_jepnode.ps_stock_available.quantity = ${producto.exiact},twofowg1_jepnode.ps_product.price = ${producto.prec01},twofowg1_jepnode.ps_product_shop.price = ${producto.prec01}
+                        /*console.log(`UPDATE twofowg1_jepweb.ps_stock_available, twofowg1_jepweb.ps_product , twofowg1_jepweb.ps_product_shop
+                        SET twofowg1_jepweb.ps_product.quantity = ${producto.exiact},twofowg1_jepweb.ps_stock_available.quantity = ${producto.exiact},twofowg1_jepweb.ps_product.price = ${producto.prec01},twofowg1_jepweb.ps_product_shop.price = ${producto.prec01}
                         WHERE 
-                        twofowg1_jepnode.ps_product.id_product=twofowg1_jepnode.ps_product_shop.id_product
-                        AND twofowg1_jepnode.ps_product.id_product=twofowg1_jepnode.ps_stock_available.id_product
-                        AND twofowg1_jepnode.ps_stock_available.id_product = ${producto.mysql.id_product};`);*/
+                        twofowg1_jepweb.ps_product.id_product=twofowg1_jepweb.ps_product_shop.id_product
+                        AND twofowg1_jepweb.ps_product.id_product=twofowg1_jepweb.ps_stock_available.id_product
+                        AND twofowg1_jepweb.ps_stock_available.id_product = ${producto.mysql.id_product};`);*/
                     } else {
                         console.log(error_stock2);
                     }
                 });
                 connection.query(`
-                REPLACE INTO twofowg1_jepnode.ps_specific_price
-                (twofowg1_jepnode.ps_specific_price.id_product,twofowg1_jepnode.ps_specific_price.id_shop,twofowg1_jepnode.ps_specific_price.id_currency,twofowg1_jepnode.ps_specific_price.id_country,twofowg1_jepnode.ps_specific_price.id_group,twofowg1_jepnode.ps_specific_price.price,twofowg1_jepnode.ps_specific_price.reduction_type) 
+                REPLACE INTO twofowg1_jepweb.ps_specific_price
+                (twofowg1_jepweb.ps_specific_price.id_product,twofowg1_jepweb.ps_specific_price.id_shop,twofowg1_jepweb.ps_specific_price.id_currency,twofowg1_jepweb.ps_specific_price.id_country,twofowg1_jepweb.ps_specific_price.id_group,twofowg1_jepweb.ps_specific_price.price,twofowg1_jepweb.ps_specific_price.reduction_type) 
                 VALUES
                 (${producto.mysql.id_product},1,1,81,3,${producto.prec01},"amount"),
                 (${producto.mysql.id_product},1,1,81,4,${producto.prec02},"amount"),
@@ -181,8 +190,8 @@ function actualizarProductos() {
     });
     return dataProductosPromise;
 }
-cron.schedule(configurarCron, () => {
-    const data_1 = actualizarProductos().then();
-    console.log(data_1);
+const data_1 = actualizarProductos().then();
+console.log(data_1);
+/*cron.schedule(configurarCron, () => {
 
-});
+});*/
