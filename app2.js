@@ -8,7 +8,7 @@ var Client = require('ftp');
 
 const config_sql = {
     user: 'darkvid',
-    password: '1234',
+    password: '12345',
     server: '127.0.0.1',
     database: 'Kdbs_jep',
     driver: 'tedious',
@@ -25,7 +25,10 @@ const config_sql = {
 
 const sqlServerProducts = new Promise((resolve, reject) => {
     new sql.ConnectionPool(config_sql).connect().then(pool => {
-        return pool.request().query(`SELECT codart,codalt,desart,nomart,nomcla,nomfam,marca,coduni,poriva,prec01,prec02,prec03,prec04,codpro,nompro,codfab,ultcos,cospro,exiact FROM kdbs_jep.dbo.web_articulos`)
+        return pool.request().query(`SELECT codart,codalt,desart,nomart,nomcla,nomfam,marca,coduni,poriva,prec01,prec02,prec03,prec04,codpro,nompro,codfab,ultcos,cospro,exiact,estado
+        ,modbas
+        ,codmod
+        ,numbul FROM kdbs_jep.dbo.web_articulos where estado!=3`)
     }).then(result => {
         sql.close();
         return resolve(result.recordset);
@@ -38,12 +41,12 @@ const sqlServerProducts = new Promise((resolve, reject) => {
 
 
 const promisesSql = [sqlServerProducts];
-const idsProductosPromise = Promise.all(promisesSql).then(results => {
+idsProductosPromise = Promise.all(promisesSql).then(results => {
     const productos = results[0];
     const columns = [
         { name: 'col1', label: 'Product ID' }, //null
         { name: 'col2', label: 'Active (0/1)' }, //1
-        { name: 'col3', label: 'Name *' }, //nomcla+marca+nommod
+        { name: 'col3', label: 'Name *' }, //nomcla+marca+nommod+codart01 izquierdo 02 derecho(mayusculas)
         { name: 'col4', label: 'Categories (x,y,z...)' }, //2
         { name: 'col5', label: 'Price tax included' }, //precio_01 
         { name: 'col6', label: 'Tax rules ID' }, //1
@@ -53,12 +56,12 @@ const idsProductosPromise = Promise.all(promisesSql).then(results => {
         { name: 'col10', label: 'Discount percent' }, //vacio
         { name: 'col11', label: 'Discount from (yyyy-mm-dd)' }, //vacio
         { name: 'col12', label: 'Discount to (yyyy-mm-dd)' }, //vacio
-        { name: 'col13', label: 'Reference #' }, //codalt
-        { name: 'col14', label: 'Supplier reference #' }, //codart
+        { name: 'col13', label: 'Reference #' }, //codart
+        { name: 'col14', label: 'Supplier reference #' }, //codfab
         { name: 'col16', label: 'Supplier' }, //nompro
         { name: 'col17', label: 'Manufacturer' }, //nompro
-        { name: 'col18', label: 'EAN13' }, //vacio
-        { name: 'col19', label: 'UPC' }, //codfab
+        { name: 'col18', label: 'EAN13' }, //codmod sin "/" ejemplo 2001/2009 == 20012009 
+        { name: 'col19', label: 'UPC' }, //codalt
         { name: 'col20', label: 'Ecotax' }, //vacio
         { name: 'col21', label: 'Width' }, //vacio
         { name: 'col22', label: 'Height' }, //vacio
@@ -69,7 +72,7 @@ const idsProductosPromise = Promise.all(promisesSql).then(results => {
         { name: 'col27', label: 'Low stock level' }, //vacio
         { name: 'col28', label: 'Visibility' }, //vacio
         { name: 'col29', label: 'Additional shipping cost' }, //vacio
-        { name: 'col30', label: 'Unity' }, //vacio
+        { name: 'col30', label: 'Unity' }, //numbul
         { name: 'col31', label: 'Unit price' }, //vacio
         { name: 'col32', label: 'Short description' }, //vacio
         { name: 'col33', label: 'Description' }, //vacio
@@ -99,12 +102,36 @@ const idsProductosPromise = Promise.all(promisesSql).then(results => {
         { name: 'col57', label: 'Depends On Stock' }, // 0
         { name: 'col58', label: 'Warehouse' } //0
     ];
-    const rows = productos.map(producto => {
+    var productosFlat = [];
+    productos.filter(producto => producto.marca && producto.modbas).forEach(producto => {
+        // split modbas for iterate in more lines
+        var modbas = producto.modbas.trim().split(', ');
+        var marca = producto.marca.split(', ');
+        modbas.forEach((item, index) => {
+            productosFlat.push({
+                ...producto,
+                modbas: item,
+                marca: marca[index] || marca[0]
+            });
+        });
+    });
+    const rows = productosFlat.map(producto => {
+        if (producto.codart && producto.codart != null) {
+            var codigoProducto = producto.codart.trim();
+            var lado = codigoProducto.substr(-2);
+            if (lado == 01) {
+                nombreLado = 'IZQUIERDO';
+            } else if (lado == 02) {
+                nombreLado = 'DERECHO';
+            } else {
+                nombreLado = '';
+            }
+        }
         return {
             ...producto,
             col1: 'NULL',
             col2: '1',
-            col3: `${producto.nomcla} ${producto.marca} ${producto.nomart}`,
+            col3: `${producto.nomcla} ${producto.marca} ${producto.modbas} ${nombreLado}`,
             col4: `1`,
             col5: `${producto.prec01}`,
             col6: `1`,
@@ -114,8 +141,8 @@ const idsProductosPromise = Promise.all(promisesSql).then(results => {
             col10: ``,
             col11: ``,
             col12: ``,
-            col13: `${producto.codalt}`,
-            col14: `${producto.codart}`,
+            col13: `${codigoProducto}`,
+            col14: `${producto.codfab}`,
             col16: `${producto.nompro}`,
             col17: `${producto.nompro}`,
             col18: ``,
@@ -134,7 +161,7 @@ const idsProductosPromise = Promise.all(promisesSql).then(results => {
             col31: ``,
             col32: ``,
             col33: ``,
-            col34: `${producto.codfab} ${producto.codart}`,
+            col34: `${producto.codfab},${codigoProducto}`,
             col35: ``,
             col36: ``,
             col37: ``,
@@ -166,7 +193,7 @@ const idsProductosPromise = Promise.all(promisesSql).then(results => {
 
 function generateCsv(columns, rows, fileName) {
     return new Promise((resolve, reject) => {
-        const filePathFromRoot = 'http://162.241.224.119/home1/twofowg1/public_html/prestatienda/csv_jep/';
+        const filePathFromRoot = __dirname + '/csv/';
         const csvStream = csv.format({
             headers: true,
             quoteColumns: true,
@@ -198,8 +225,8 @@ function generateCsv(columns, rows, fileName) {
             var c = new Client();
             c.on('ready', function() {
                 c.put(fileName, fileName, function(err) {
-                if (err) throw err;
-                c.end();
+                    if (err) throw err;
+                    c.end();
                 });
             });
             // connect to localhost:21 as anonymous
@@ -210,7 +237,7 @@ function generateCsv(columns, rows, fileName) {
             reject(err);
         });
     });
-    
-    
-   
+
+
+
 }
