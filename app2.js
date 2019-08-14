@@ -1,10 +1,11 @@
 var express = require('express');
 var app = express();
-var port = process.env.PORT || 5000;
 var sql = require('mssql');
+var mysql = require('mysql');
 const csv = require('fast-csv');
 const fs = require('fs');
 var Client = require('ftp');
+var port = process.env.PORT || 5000;
 
 const config_sql = {
     user: 'darkvid',
@@ -23,6 +24,36 @@ const config_sql = {
     }
 };
 
+var config_mysql_prod = {
+    host: "162.241.224.119",
+    user: "twofowg1_WPYQG",
+    password: "247Ec!!!!",
+    database: "twofowg1_jepweb"
+};
+
+var connection;
+
+function handleDisconnect() {
+    connection = mysql.createConnection(config_mysql_prod);
+    connection.connect(function(err) { // The server is either down
+        if (err) { // or restarting (takes a while sometimes).
+            console.log('error when connecting to db:', err);
+            setTimeout(handleDisconnect, 20000); // We introduce a delay before attempting to reconnect,
+        } // to avoid a hot loop, and to allow our node script to
+    }); // process asynchronous requests in the meantime.
+    // If you're also serving http, display a 503 error.
+    connection.on('error', function(err) {
+        console.log('db error', err);
+        if (err.code === 'PROTOCOL_CONNECTION_LOST') { // Connection to the MySQL server is usually
+            handleDisconnect(); // lost due to either server restart, or a
+        } else { // connnection idle timeout (the wait_timeout
+            throw err; // server variable configures this)
+        }
+    });
+}
+
+handleDisconnect();
+
 const sqlServerProducts = new Promise((resolve, reject) => {
     new sql.ConnectionPool(config_sql).connect().then(pool => {
         return pool.request().query(`SELECT codart,codalt,desart,nomart,nomcla,nomfam,marca,coduni,poriva,prec01,prec02,prec03,prec04,codpro,nompro,codfab,ultcos,cospro,exiact,estado
@@ -38,11 +69,44 @@ const sqlServerProducts = new Promise((resolve, reject) => {
     });
 });
 
+const mysqlCategoryPromise = new Promise((resolve, reject) => {
+    return connection.query(`
+        SELECT * 
+        from twofowg1_jepweb.ps_category_lang 
+        `, (error_category, result_category) => {
+        if (!error_category) {
+            return resolve(JSON.parse(JSON.stringify(result_category)));
+        } else {
+            console.log('ERROR"::::', error_category);
+            return reject([]);
+        }
+    });
+});
 
 
-const promisesSql = [sqlServerProducts];
+const promisesSql = [sqlServerProducts, mysqlCategoryPromise];
 idsProductosPromise = Promise.all(promisesSql).then(results => {
-    const productos = results[0];
+    let productos = results[0];
+    let categorias = results[1] || [];
+    let familiacategorias;
+    productos = productos.map(producto => {
+        return {
+            ...producto,
+            categorias: categorias.filter(categoria =>
+                `${producto.marca};${producto.modbas};${producto.codmod}`.toLowerCase().replace(/ /gi, '') === categoria.description.toLowerCase().replace(/ /gi, '')
+            ).map(categoria => categoria.id_category).join(',')
+        };
+    });
+    productos = productos.map(producto => {
+        return {
+            ...producto,
+            familiacategorias: categorias.filter(categoria =>
+                `${producto.nomfam};${producto.nomcla}`.toLowerCase().replace(/ /gi, '') === categoria.description.toLowerCase().replace(/ /gi, '')
+            ).map(categoria => categoria.id_category).join(',')
+        };
+    });
+
+
     const columns = [
         { name: 'col1', label: 'Product ID' }, //null
         { name: 'col2', label: 'Active (0/1)' }, //1
@@ -90,7 +154,7 @@ idsProductosPromise = Promise.all(promisesSql).then(results => {
         { name: 'col45', label: 'Image URLs (x,y,z...)' }, //url de imagen de ejemplo
         { name: 'col46', label: 'Image alt texts (x,y,z...)' }, //blanco
         { name: 'col47', label: 'Delete existing images (0 = No, 1 = Yes)' }, //1
-        { name: 'col48', label: 'Feature(Name:Value:Position)' }, //CATEGORIA:nomfam:0,SUBCATEGORIA:nombcla:1
+        { name: 'col48', label: 'Feature(Name:Value:Position)' }, //CATEGORIA:nomfam:0,SUBCATEGORIA:nomcla:1
         { name: 'col49', label: 'Available online only (0 = No, 1 = Yes)' }, // 0
         { name: 'col50', label: 'Condition' }, //new
         { name: 'col51', label: 'Customizable (0 = No, 1 = Yes)' }, // 0
@@ -105,6 +169,7 @@ idsProductosPromise = Promise.all(promisesSql).then(results => {
     var productosFlat = [];
     productos.filter(producto => producto.marca && producto.modbas).forEach(producto => {
         // split modbas for iterate in more lines
+
         var modbas = producto.modbas.trim().split(', ');
         var marca = producto.marca.split(', ');
         modbas.forEach((item, index) => {
@@ -115,7 +180,20 @@ idsProductosPromise = Promise.all(promisesSql).then(results => {
             });
         });
     });
+
     const rows = productosFlat.map(producto => {
+        if (producto.codfab && producto.codfab != null) {
+            var codigoFabrica = producto.codfab.trim();
+        }
+        if (producto.nomcla && producto.nomcla != null) {
+            var mombreClase = producto.nomcla.trim();
+        }
+        if (producto.codalt && producto.codalt != null) {
+            var codigoAlternativo = producto.codalt.trim();
+        }
+        if (producto.nompro && producto.nompro != null) {
+            var codigoProveedor = producto.nompro.trim();
+        }
         if (producto.codart && producto.codart != null) {
             var codigoProducto = producto.codart.trim();
             var lado = codigoProducto.substr(-2);
@@ -132,21 +210,21 @@ idsProductosPromise = Promise.all(promisesSql).then(results => {
             col1: 'NULL',
             col2: '1',
             col3: `${producto.nomcla} ${producto.marca} ${producto.modbas} ${nombreLado}`,
-            col4: `1`,
+            col4: `${producto.categorias},${familiacategorias}`,
             col5: `${producto.prec01}`,
             col6: `1`,
             col7: `0`,
             col8: `1`,
             col9: ``,
             col10: ``,
-            col11: ``,
-            col12: ``,
+            col11: `${producto.marca}`,
+            col12: `${producto.modbas}`,
             col13: `${codigoProducto}`,
-            col14: `${producto.codfab}`,
-            col16: `${producto.nompro}`,
-            col17: `${producto.nompro}`,
+            col14: `${codigoFabrica}`,
+            col16: `${codigoProveedor}`,
+            col17: `${codigoProveedor}`,
             col18: ``,
-            col19: `${producto.codfab}`,
+            col19: `${codigoAlternativo}`,
             col20: ``,
             col21: ``,
             col22: ``,
@@ -157,11 +235,11 @@ idsProductosPromise = Promise.all(promisesSql).then(results => {
             col27: ``,
             col28: ``,
             col29: ``,
-            col30: ``,
+            col30: `${producto.numbul}`,
             col31: ``,
-            col32: ``,
+            col32: `${producto.codmod}`,
             col33: ``,
-            col34: `${producto.codfab},${codigoProducto}`,
+            col34: `${codigoFabrica},${codigoProducto}`,
             col35: ``,
             col36: ``,
             col37: ``,
@@ -172,10 +250,10 @@ idsProductosPromise = Promise.all(promisesSql).then(results => {
             col42: ``,
             col43: ``,
             col44: ``,
-            col45: `https://247.com.ec/jep/img/p/productos/0301010501.jpg,https://247.com.ec/jep/img/p/productos/0301010501.1.jpg,https://247.com.ec/jep/img/p/productos/0301010501.2.jpg`,
+            col45: `https://247.com.ec/jep/img/p/productos/${codigoProducto}.jpg`,
             col46: ``,
             col47: `1`,
-            col48: `CATEGORIA:${producto.nomfam}:0,SUBCATEGORIA:${producto.nombcla}:1`,
+            col48: `CATEGORIA:${producto.nomfam}:0,SUBCATEGORIA:${mombreClase}:1`,
             col49: `0`,
             col50: `new`,
             col51: `0`,
@@ -234,10 +312,7 @@ function generateCsv(columns, rows, fileName) {
         });
 
         writableStream.on('error', (err) => {
-            reject(err);
+            //reject(err);
         });
     });
-
-
-
 }

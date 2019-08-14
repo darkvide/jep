@@ -41,7 +41,6 @@ var config_mysql = {
 };
 
 const configurarCron = '*/2 * * * *';
-const configuracionDavid = '*/1 * * * *';
 
 var connection;
 
@@ -191,15 +190,9 @@ function actualizarProductos() {
     });
     return dataProductosPromise;
 }
-cron.schedule(configurarCron, () => {
-    //const data_1 = actualizarProductos().then();
-    //console.log(data_1);
+const data_1 = actualizarProductos().then();
+console.log(data_1);
 
+/*cron.schedule(configurarCron, () => {
     console.log('strak');
-});
-cron.schedule(configuracionDavid, () => {
-    //const data_1 = actualizarProductos().then();
-    //console.log(data_1);
-
-    console.log('darkvid');
-});
+});*/
