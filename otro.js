@@ -23,7 +23,7 @@ const config_sql = {
 };
 
 var config_mysql_prod = {
-    host: "162.241.224.119",
+    host: "173.231.246.129",
     user: "jepimp5_jpreues",
     password: "xEf;XB2LIMWf",
     database: "jepimp5_cmmpje"
@@ -85,8 +85,8 @@ const sqlServeClients = new Promise((resolve, reject) => {
 
 const mysqlProductPromise = new Promise((resolve, reject) => {
     return connection.query(`
-        SELECT twofowg1_jepweb.ps_product.id_product,twofowg1_jepweb.ps_product.supplier_reference 
-        FROM twofowg1_jepweb.ps_product 
+        SELECT jepimp5_cmmpje.ps_product.id_product,jepimp5_cmmpje.ps_product.supplier_reference 
+        FROM jepimp5_cmmpje.ps_product 
         `, (error_stock, result_stock) => {
         if (!error_stock) {
             return resolve(JSON.parse(JSON.stringify(result_stock)));
@@ -98,7 +98,7 @@ const mysqlProductPromise = new Promise((resolve, reject) => {
 const mysqlClientPromise = new Promise((resolve, reject) => {
     return connection.query(`
         SELECT pc.email 
-        from twofowg1_jepweb.ps_customer pc
+        from jepimp5_cmmpje.ps_customer pc
         `, (error_clientes, result_clientes) => {
         if (!error_clientes) {
             return resolve(JSON.parse(JSON.stringify(result_clientes)));
@@ -125,28 +125,28 @@ function actualizarProductos() {
         /**/
         productos.forEach(producto => {
             if (producto.mysql != null || producto.mysql != undefined) {
-                connection.query(`UPDATE twofowg1_jepweb.ps_stock_available, twofowg1_jepweb.ps_product, twofowg1_jepweb.ps_product_shop
-                SET twofowg1_jepweb.ps_product.quantity = ${producto.exiact},twofowg1_jepweb.ps_product.unity  = ${producto.numbul},twofowg1_jepweb.ps_stock_available.quantity = ${producto.exiact},twofowg1_jepweb.ps_product.price = ${producto.prec01},twofowg1_jepweb.ps_product_shop.price = ${producto.prec01}
+                connection.query(`UPDATE jepimp5_cmmpje.ps_stock_available, jepimp5_cmmpje.ps_product, jepimp5_cmmpje.ps_product_shop
+                SET jepimp5_cmmpje.ps_product.quantity = ${producto.exiact},jepimp5_cmmpje.ps_product.unity  = ${producto.numbul},jepimp5_cmmpje.ps_stock_available.quantity = ${producto.exiact},jepimp5_cmmpje.ps_product.price = ${producto.prec01},jepimp5_cmmpje.ps_product_shop.price = ${producto.prec01}
                 WHERE 
-                twofowg1_jepweb.ps_product.id_product=twofowg1_jepweb.ps_product_shop.id_product
-                AND twofowg1_jepweb.ps_product.id_product=twofowg1_jepweb.ps_stock_available.id_product
-                AND twofowg1_jepweb.ps_stock_available.id_product = ${producto.mysql.id_product};`, (error_stock2, result_stock2) => {
+                jepimp5_cmmpje.ps_product.id_product=jepimp5_cmmpje.ps_product_shop.id_product
+                AND jepimp5_cmmpje.ps_product.id_product=jepimp5_cmmpje.ps_stock_available.id_product
+                AND jepimp5_cmmpje.ps_stock_available.id_product = ${producto.mysql.id_product};`, (error_stock2, result_stock2) => {
                     if (!error_stock2) {
                         console.log(producto.mysql.id_product);
                         //console.log(producto.stock, producto.precios.prec01, producto.mysql.id_product);
-                        /*console.log(`UPDATE twofowg1_jepweb.ps_stock_available, twofowg1_jepweb.ps_product , twofowg1_jepweb.ps_product_shop
-                        SET twofowg1_jepweb.ps_product.quantity = ${producto.exiact},twofowg1_jepweb.ps_stock_available.quantity = ${producto.exiact},twofowg1_jepweb.ps_product.price = ${producto.prec01},twofowg1_jepweb.ps_product_shop.price = ${producto.prec01}
+                        /*console.log(`UPDATE jepimp5_cmmpje.ps_stock_available, jepimp5_cmmpje.ps_product , jepimp5_cmmpje.ps_product_shop
+                        SET jepimp5_cmmpje.ps_product.quantity = ${producto.exiact},jepimp5_cmmpje.ps_stock_available.quantity = ${producto.exiact},jepimp5_cmmpje.ps_product.price = ${producto.prec01},jepimp5_cmmpje.ps_product_shop.price = ${producto.prec01}
                         WHERE 
-                        twofowg1_jepweb.ps_product.id_product=twofowg1_jepweb.ps_product_shop.id_product
-                        AND twofowg1_jepweb.ps_product.id_product=twofowg1_jepweb.ps_stock_available.id_product
-                        AND twofowg1_jepweb.ps_stock_available.id_product = ${producto.mysql.id_product};`);*/
+                        jepimp5_cmmpje.ps_product.id_product=jepimp5_cmmpje.ps_product_shop.id_product
+                        AND jepimp5_cmmpje.ps_product.id_product=jepimp5_cmmpje.ps_stock_available.id_product
+                        AND jepimp5_cmmpje.ps_stock_available.id_product = ${producto.mysql.id_product};`);*/
                     } else {
                         console.log(error_stock2);
                     }
                 });
                 connection.query(`
-                REPLACE INTO twofowg1_jepweb.ps_specific_price
-                (twofowg1_jepweb.ps_specific_price.id_product,twofowg1_jepweb.ps_specific_price.id_shop,twofowg1_jepweb.ps_specific_price.id_currency,twofowg1_jepweb.ps_specific_price.id_country,twofowg1_jepweb.ps_specific_price.id_group,twofowg1_jepweb.ps_specific_price.price,twofowg1_jepweb.ps_specific_price.reduction_type) 
+                REPLACE INTO jepimp5_cmmpje.ps_specific_price
+                (jepimp5_cmmpje.ps_specific_price.id_product,jepimp5_cmmpje.ps_specific_price.id_shop,jepimp5_cmmpje.ps_specific_price.id_currency,jepimp5_cmmpje.ps_specific_price.id_country,jepimp5_cmmpje.ps_specific_price.id_group,jepimp5_cmmpje.ps_specific_price.price,jepimp5_cmmpje.ps_specific_price.reduction_type) 
                 VALUES
                 (${producto.mysql.id_product},1,1,81,3,${producto.prec01},"amount"),
                 (${producto.mysql.id_product},1,1,81,4,${producto.prec02},"amount"),
