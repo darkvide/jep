@@ -21,24 +21,14 @@ const config_sql = {
         max: 100
     }
 };
-/*var config_mysql_prod = {
-    host: "162.241.224.119",
-    user: "twofowg1_darkvid",
-    password: "De12345678",
-    database: "twofowg1_jepnode"
-};*/
+
 var config_mysql_prod = {
     host: "162.241.224.119",
-    user: "twofowg1_WPYQG",
-    password: "247Ec!!!!",
-    database: "twofowg1_jepweb"
+    user: "jepimp5_jpreues",
+    password: "xEf;XB2LIMWf",
+    database: "jepimp5_cmmpje"
 };
-var config_mysql = {
-    host: "localhost",
-    user: "root",
-    password: "",
-    database: "prestatienda"
-};
+
 
 const configurarCron = '*/2 * * * *';
 

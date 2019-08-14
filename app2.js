@@ -90,21 +90,18 @@ idsProductosPromise = Promise.all(promisesSql).then(results => {
     let categorias = results[1] || [];
     let familiacategorias;
     productos = productos.map(producto => {
+
         return {
             ...producto,
             categorias: categorias.filter(categoria =>
                 `${producto.marca};${producto.modbas};${producto.codmod}`.toLowerCase().replace(/ /gi, '') === categoria.description.toLowerCase().replace(/ /gi, '')
-            ).map(categoria => categoria.id_category).join(',')
-        };
-    });
-    productos = productos.map(producto => {
-        return {
-            ...producto,
+            ).map(categoria => categoria.id_category).join(','),
             familiacategorias: categorias.filter(categoria =>
-                `${producto.nomfam};${producto.nomcla}`.toLowerCase().replace(/ /gi, '') === categoria.description.toLowerCase().replace(/ /gi, '')
+                `${producto.nomfam.toLowerCase().replace(/ /gi, '')};${producto.nomcla.toLowerCase().replace(/ /gi, '')}` === categoria.description.toLowerCase().replace(/ /gi, '')
             ).map(categoria => categoria.id_category).join(',')
         };
     });
+
 
 
     const columns = [
