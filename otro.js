@@ -24,18 +24,27 @@ const config_sql = {
 
 var config_mysql_prod = {
     host: "173.231.246.129",
-    user: "jepimp5_jpreues",
-    password: "xEf;XB2LIMWf",
+    user: "jepimp5_darkvid",
+    password: "D@rkv1destrella",
     database: "jepimp5_cmmpje"
 };
-
+/*
+var config_mysql_prod = {
+    host: "162.241.224.119",
+    user: "twofowg1_darkvid",
+    password: "De12345678",
+    database: "twofowg1_jepnode",
+    //debug: true
+};*/
 
 const configurarCron = '*/2 * * * *';
 
-var connection;
+var connection, con2, con3;
 
 function handleDisconnect() {
     connection = mysql.createConnection(config_mysql_prod);
+    con2 = mysql.createConnection(config_mysql_prod);
+    con3 = mysql.createConnection(config_mysql_prod);
     connection.connect(function(err) { // The server is either down
         if (err) { // or restarting (takes a while sometimes).
             console.log('error when connecting to db:', err);
@@ -55,7 +64,6 @@ function handleDisconnect() {
 
 handleDisconnect();
 
-
 const sqlServerProducts = new Promise((resolve, reject) => {
     new sql.ConnectionPool(config_sql).connect().then(pool => {
         return pool.request().query(`SELECT codart,codalt,desart,nomart,nomcla,nomfam,marca,coduni,poriva,prec01,prec02,prec03,prec04,codpro,nompro,codfab,ultcos,cospro,exiact,estado
@@ -73,7 +81,7 @@ const sqlServerProducts = new Promise((resolve, reject) => {
 
 const sqlServeClients = new Promise((resolve, reject) => {
     new sql.ConnectionPool(config_sql).connect().then(pool => {
-        return pool.request().query(`SELECT  codcli,tipind,rucced,nomcli,repcli,contac,ciucli,dircli,dirnum,dirint,telcli,telcas,telcel,email FROM kdbs_jep.dbo.web_clientes`)
+        return pool.request().query(`SELECT codcli,tipind,rucced,nomcli,repcli,contac,ciucli,dircli,dirnum,dirint,telcli,telcas,telcel,email FROM kdbs_jep.dbo.web_clientes where codcli!='*' and email is not null`)
     }).then(result => {
         sql.close();
         return resolve(result.recordset);
@@ -97,15 +105,88 @@ const mysqlProductPromise = new Promise((resolve, reject) => {
 
 const mysqlClientPromise = new Promise((resolve, reject) => {
     return connection.query(`
-        SELECT pc.email 
-        from ps_customer pc
+        SELECT  * 
+        from  ps_customer 
         `, (error_clientes, result_clientes) => {
         if (!error_clientes) {
             return resolve(JSON.parse(JSON.stringify(result_clientes)));
+        } else {
+            return resolve([]);
         }
-        return resolve([]);
     });
 });
+
+
+function actualizaClientes() {
+    var m = new Date();
+    var hoy =
+        m.getUTCFullYear() + "-" +
+        ("0" + (m.getUTCMonth() + 1)).slice(-2) + "-" +
+        ("0" + m.getUTCDate()).slice(-2) + " " +
+        ("0" + m.getUTCHours()).slice(-2) + ":" +
+        ("0" + m.getUTCMinutes()).slice(-2) + ":" +
+        ("0" + m.getUTCSeconds()).slice(-2);
+
+    return Promise.all([sqlServeClients, mysqlClientPromise]).then(result => {
+        const dataClientesSql = result[0];
+        const dataClientesMysql = result[1];
+        const userEMails = dataClientesMysql.map(
+            cliente => cliente.email
+        );
+        const nuevosClientes = dataClientesSql.filter(
+            cliente => !userEMails.includes(cliente.email)
+            //cliente => !userEMails.includes(cliente.campoEmailDeEstosRegistros)
+        );
+        nuevosClientes.forEach(nuevocliente => {
+            connection.query(`INSERT INTO ps_customer (ps_customer.id_shop_group,ps_customer.id_shop,ps_customer.id_gender,ps_customer.id_default_group,ps_customer.id_lang,ps_customer.id_risk,ps_customer.firstname,ps_customer.lastname,ps_customer.email,ps_customer.passwd,ps_customer.date_add,ps_customer.date_upd)
+            VALUES (1,1,0,${nuevocliente.tipind.trim()},1,0,'${nuevocliente.nomcli.trim()}','${nuevocliente.nomcli.trim()}','${nuevocliente.email.trim()}',"$2y$10$FOnZ7jFGGelEUD7GjjEJNey6Vj9CZ0sm4QnOA1lNellHXvFjS4Z.6","${hoy}","${hoy}");
+            `, (error_customer, result_customer) => {
+                if (error_customer) {
+                    console.log(error_customer);
+                    return;
+                }
+                if (!error_customer) {
+                    const sqlGroup = mysql.format(`
+                        INSERT INTO ps_customer_group 
+                            (id_customer,id_group)
+                        VALUES 
+                            (?, ?)`, [result_customer.insertId, nuevocliente.tipind.trim()]);
+
+                    con2.query(sqlGroup, (error_customer_group, success_customer_group) => {
+                        console.log(error_customer_group, success_customer_group);
+                        if (success_customer_group.insertId) {
+                            console.log(success_customer_group, 'customer group');
+                        } else {
+                            console.log(error_customer_group);
+                        }
+                    });
+
+                    const sqlAddress = mysql.format(`INSERT INTO ps_address 
+                    (id_country,id_state,id_customer,alias,company,lastname,firstname,address1,address2,city,phone,dni,date_add,date_upd)
+                    VALUES
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, ['81', '20', result_customer.insertId, 'Delivery address', nuevocliente.nomcli, 'sin contacto', 'sin contacto', nuevocliente.dircli + ' ' + nuevocliente.dirnum, nuevocliente.dirint, nuevocliente.ciucli, nuevocliente.telcel, nuevocliente.rucced, hoy, hoy]);
+
+                    console.log(sqlAddress, sqlGroup, result_customer.insertId);
+                    con3.query(sqlAddress, (error_customer_address, success_customer_address) => {
+                        if (error_customer_address) {
+                            console.log(error_customer_address);
+                        } else {
+                            console.log(success_customer_address, 'customer address');
+                        }
+                    });
+
+                } else {
+                    console.log('no hay id', result_customer);
+                }
+
+            });
+
+        });
+
+
+
+    });
+}
 
 function actualizarProductos() {
     const dataProductosPromise = Promise.all([sqlServerProducts, sqlServeClients, mysqlProductPromise, mysqlClientPromise]).then(result => {
@@ -162,27 +243,23 @@ function actualizarProductos() {
             }
 
         });
-        //update precios
-        /**/
-        /*const clientesArray = dataClientesSql.map(clientes => {
-            return {
-                ...clientes,
-                mysql: dataClientesMysql.find(cm => {
-                    return cm.email == clientes.email;
-                })
-            };
-        });*/
 
-        //update stock
-        //connection.end();
         return { dataProductosSql };
 
     });
     return dataProductosPromise;
 }
-const data_1 = actualizarProductos().then();
-console.log(data_1);
+//const data_1 = actualizarProductos().then();
+//console.log(data_1);
+
+actualizaClientes().then(cliente_datos => {
+    console.log('fin de la ejecucion', cliente_datos);
+}).catch(err => console.log(err)).finally(() => { console.log('fin de todo') });
+
 
 /*cron.schedule(configurarCron, () => {
     console.log('strak');
+    connection.query(`INSERT INTO ps_customer (ps_customer.id_shop_group,ps_customer.id_shop,ps_customer.id_gender,ps_customer.id_default_group,ps_customer.id_lang,ps_customer.id_risk,ps_customer.firstname,ps_customer.lastname,ps_customer.email,ps_customer.passwd,ps_customer.date_add,ps_customer.date_upd)
+     connection.query(`INSERT INTO ps_customer_group (ps_customer_group.id_customer,ps_customer_group.id_group)
+
 });*/

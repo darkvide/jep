@@ -24,11 +24,18 @@ const config_sql = {
     }
 };
 
+// var config_mysql_prod = {
+//     host: "162.241.224.119",
+//     user: "twofowg1_WPYQG",
+//     password: "247Ec!!!!",
+//     database: "twofowg1_jepweb"
+// };
+
 var config_mysql_prod = {
-    host: "162.241.224.119",
-    user: "twofowg1_WPYQG",
-    password: "247Ec!!!!",
-    database: "twofowg1_jepweb"
+    host: "173.231.246.129",
+    user: "jepimp5_jpreues",
+    password: "xEf;XB2LIMWf",
+    database: "jepimp5_cmmpje"
 };
 
 var connection;
@@ -72,7 +79,7 @@ const sqlServerProducts = new Promise((resolve, reject) => {
 const mysqlCategoryPromise = new Promise((resolve, reject) => {
     return connection.query(`
         SELECT * 
-        from twofowg1_jepweb.ps_category_lang 
+        from ps_category_lang 
         `, (error_category, result_category) => {
         if (!error_category) {
             return resolve(JSON.parse(JSON.stringify(result_category)));
@@ -90,18 +97,24 @@ idsProductosPromise = Promise.all(promisesSql).then(results => {
     let categorias = results[1] || [];
     let familiacategorias;
     productos = productos.map(producto => {
-
         return {
             ...producto,
             categorias: categorias.filter(categoria =>
                 `${producto.marca};${producto.modbas};${producto.codmod}`.toLowerCase().replace(/ /gi, '') === categoria.description.toLowerCase().replace(/ /gi, '')
             ).map(categoria => categoria.id_category).join(','),
             familiacategorias: categorias.filter(categoria =>
-                `${producto.nomfam.toLowerCase().replace(/ /gi, '')};${producto.nomcla.toLowerCase().replace(/ /gi, '')}` === categoria.description.toLowerCase().replace(/ /gi, '')
-            ).map(categoria => categoria.id_category).join(',')
+                    `${producto.nomfam.toLowerCase().replace(/ /gi, '')};${producto.nomcla.toLowerCase().replace(/ /gi, '')}` === categoria.description.toLowerCase().replace(/ /gi, '')
+                ).map(categoria => categoria.id_category).join(',')
+                /*categorias: categorias.filter(categoria => {
+                    console.log(
+                        `${producto.codart.toLowerCase().replace(/ /gi, '')};${producto.nomfam.toLowerCase().replace(/ /gi, '')};${producto.nomcla.toLowerCase().replace(/ /gi, '')}`,
+                        categoria.description.toLowerCase().replace(/ /gi, '')
+                    );
+                    return `${producto.nomfam.toLowerCase().replace(/ /gi, '')};${producto.nomcla.toLowerCase().replace(/ /gi, '')}` ===
+                        categoria.description.toLowerCase().replace(/ /gi, '')
+                })*/
         };
     });
-
 
 
     const columns = [
@@ -167,8 +180,11 @@ idsProductosPromise = Promise.all(promisesSql).then(results => {
     productos.filter(producto => producto.marca && producto.modbas).forEach(producto => {
         // split modbas for iterate in more lines
 
-        var modbas = producto.modbas.trim().split(', ');
-        var marca = producto.marca.split(', ');
+        //var modbas = producto.modbas.trim().split(', ');
+        //var marca = producto.marca.split(', ');
+        var modbas = producto.modbas.trim();
+        modbas = modbas.replace('/', ',').replace(' ,', ',').replace(', ', ',').split(',');
+        var marca = producto.marca.split('/').join(', ').split(', ');
         modbas.forEach((item, index) => {
             productosFlat.push({
                 ...producto,
@@ -176,9 +192,11 @@ idsProductosPromise = Promise.all(promisesSql).then(results => {
                 marca: marca[index] || marca[0]
             });
         });
+
     });
 
     const rows = productosFlat.map(producto => {
+        //console.log(producto.codart, 'dark ', producto.familiacategorias);
         if (producto.codfab && producto.codfab != null) {
             var codigoFabrica = producto.codfab.trim();
         }
@@ -207,7 +225,7 @@ idsProductosPromise = Promise.all(promisesSql).then(results => {
             col1: 'NULL',
             col2: '1',
             col3: `${producto.nomcla} ${producto.marca} ${producto.modbas} ${nombreLado}`,
-            col4: `${producto.categorias},${familiacategorias}`,
+            col4: `${producto.categorias},${producto.familiacategorias}`,
             col5: `${producto.prec01}`,
             col6: `1`,
             col7: `0`,
