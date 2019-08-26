@@ -4,7 +4,8 @@ var sql = require('mssql');
 var mysql = require('mysql');
 const csv = require('fast-csv');
 const fs = require('fs');
-var Client = require('ftp');
+var PromiseFtp = require('promise-ftp');
+var ftp = new PromiseFtp();
 var port = process.env.PORT || 5000;
 
 const config_sql = {
@@ -314,20 +315,27 @@ function generateCsv(columns, rows, fileName) {
         csvStream.end();
 
         writableStream.on('finish', () => {
-            resolve({ fileName });
+            /*resolve({ fileName });
             var c = new Client();
             c.on('ready', function() {
                 c.put(fileName, fileName, function(err) {
                     if (err) throw err;
                     c.end();
                 });
-            });
+            });*/
             // connect to localhost:21 as anonymous
-            c.connect();
+            // c.connect();
+            ftp.connect({ host: '247.com.ec', user: 'destrella@247.com.ec', password: 'De1234567890' })
+                .then(function(serverMessage) {
+                    console.log('Server message: ' + fileName);
+                    return ftp.put(fileName, 'darktest/' + fileName);
+                }).then(function() {
+                    return ftp.end();
+                });
         });
 
-        writableStream.on('error', (err) => {
-            //reject(err);
-        });
+        //writableStream.on('error', (err) => {
+        //reject(err);
+        //});
     });
 }

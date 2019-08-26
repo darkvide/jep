@@ -37,7 +37,7 @@ var config_mysql_prod = {
     //debug: true
 };*/
 
-const configurarCron = '*/2 * * * *';
+//const configurarCron = '*/2 * * * *';
 
 var connection, con2, con3;
 
@@ -254,6 +254,10 @@ function actualizarProductos() {
 
 actualizaClientes().then(cliente_datos => {
     console.log('fin de la ejecucion', cliente_datos);
+}).catch(err => console.log(err)).finally(() => { console.log('fin de todo') });
+
+actualizarProductos().then(producto_datos => {
+    console.log('fin de la ejecucion', producto_datos);
 }).catch(err => console.log(err)).finally(() => { console.log('fin de todo') });
 
 
