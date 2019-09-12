@@ -113,7 +113,6 @@ const mysqlCategoryPromise = new Promise((resolve, reject) => {
 });
 
 function crearNuevos(categorias, productos) {
-    connection.destroy();
     var m = new Date();
     var hoy =
         m.getUTCFullYear() + "-" +
@@ -145,7 +144,7 @@ function crearNuevos(categorias, productos) {
                 // modelo y anio
                 if (categoria.description) {
                     const temp = categoria.description.split(';');
-                    if (temp[1].toString() != '') {
+                    if (temp[1] && temp[1].toString() != '') {
                         referenciaMarcas[String(temp[1]).trim()] = {
                             ...categoria
                         };
@@ -193,6 +192,60 @@ function crearNuevos(categorias, productos) {
                             });
 
                             console.log('insert into tabla ', value, producto.marca, referenciaMarcas[datosMarca].id_category_lang);
+                            connection.query(`INSERT INTO twofowg1_jepweb.ps_category (ps_category.id_parent,ps_category.id_shop_default,ps_category.level_depth,ps_category.nleft,ps_category.nright,ps_category.active,ps_category.date_add,ps_category.date_upd,ps_category.position,ps_category.is_root_category)
+                             VALUES (${referenciaMarcas[datosMarca].id_category_lang},1,4,4000,40001,1,"${hoy}","${hoy}",0,0);
+                             `, (error_modelo, result_modelo) => {
+                                if (error_modelo) {
+                                    console.log(error_modelo);
+                                    return;
+                                }
+                                if (!error_modelo) {
+                                    const sqlGroup = mysql.format(`
+                                         INSERT INTO twofowg1_jepweb.ps_category_lang  
+                                             (ps_category_lang.id_category,ps_category_lang.id_shop,ps_category_lang.id_lang,ps_category_lang.name,ps_category_lang.description,ps_category_lang.link_rewrite,ps_category_lang.meta_title,ps_category_lang.meta_keywords,ps_category_lang.meta_description)
+                                         VALUES 
+                                             (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [result_modelo.insertId, 1, 1, value.trim(), value.replace(/ /gi, '').trim(), value.toLowerCase().replace(/ /gi, '-').trim(), '', '', '']);
+                                    con2.query(sqlGroup, (error_category_lang, success_category_lang) => {
+                                        console.log(error_category_lang, success_category_lang);
+                                        if (success_category_lang.insertId) {
+                                            console.log(success_category_lang, 'category_lang');
+                                        } else {
+                                            console.log(error_category_lang);
+                                        }
+                                    });
+                                    for (var i = 1; i < 6; i++) {
+                                        const sqlCatGrp = mysql.format(`INSERT INTO twofowg1_jepweb.ps_category_group  
+                                         (id_category,id_group)
+                                         VALUES
+                                         (?, ?)`, [result_modelo.insertId, i]);
+
+                                        con3.query(sqlCatGrp, (error_category_group, success_category_group) => {
+                                            if (error_category_group) {
+                                                console.log(error_category_group);
+                                            } else {
+                                                console.log(success_category_group, 'category_group');
+                                            }
+                                        });
+                                    }
+                                    const sqlCategoryShop = mysql.format(`
+                                         INSERT INTO twofowg1_jepweb.ps_category_shop  
+                                             (ps_category_shop.id_category,ps_category_shop.id_shop,ps_category_shop.position)
+                                         VALUES 
+                                             (?, ?, ?)`, [result_modelo.insertId, 1, 1]);
+                                    con4.query(sqlCategoryShop, (error_category_shop, success_category_shop) => {
+                                        console.log(error_category_shop, success_category_shop);
+                                        if (success_category_shop.insertId) {
+                                            console.log(success_category_shop, 'category_shop');
+                                        } else {
+                                            console.log(error_category_shop);
+                                        }
+                                    });
+
+                                } else {
+                                    console.log('no hay id', result_customer);
+                                }
+
+                            });
                         }
                     }
                 });
@@ -230,6 +283,7 @@ function crearNuevos(categorias, productos) {
                         producto.marca == nombreMarca
                     ) {
                         const anioMysql = parseInt(data.name);
+                        const id_modelo = parseInt(data.id_category_lang);
                         const inicioRango = parseInt(rangos[0]);
                         const finRango = parseInt(rangos[rangos.length - 1]);
 
@@ -242,6 +296,7 @@ function crearNuevos(categorias, productos) {
                                 esNuevoAnio = {
                                     marca: nombreMarca,
                                     modelo: modelo,
+                                    id_modelo,
                                     anio: anioMysql,
                                     inicioRango: inicioRango,
                                     finRango: finRango,
@@ -253,6 +308,63 @@ function crearNuevos(categorias, productos) {
                     }
                 });
                 if (esNuevoAnio) {
+                    console.log('insert anio', esNuevoAnio);
+                    connection.query(`INSERT INTO twofowg1_jepweb.ps_category (ps_category.id_parent,ps_category.id_shop_default,ps_category.level_depth,ps_category.nleft,ps_category.nright,ps_category.active,ps_category.date_add,ps_category.date_upd,ps_category.position,ps_category.is_root_category)
+                    VALUES (${esNuevoAnio.id_modelo},1,4,4000,40001,1,"${hoy}","${hoy}",0,0);
+                    `, (error_anio, result_anio) => {
+                        if (error_anio) {
+                            console.log(error_anio);
+                            return;
+                        }
+                        if (!error_anio) {
+                            const sqlGroup = mysql.format(`
+                                INSERT INTO twofowg1_jepweb.ps_category_lang  
+                                    (ps_category_lang.id_category,ps_category_lang.id_shop,ps_category_lang.id_lang,ps_category_lang.name,ps_category_lang.description,ps_category_lang.link_rewrite,ps_category_lang.meta_title,ps_category_lang.meta_keywords,ps_category_lang.meta_description)
+                                VALUES 
+                                    (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    
+                                    `, [result_anio.insertId, 1, 1, esNuevoAnio.anio, esNuevoAnio.marca + ';' + esNuevoAnio.modelo + ';' + esNuevoAnio.anio, esNuevoAnio.anio, '', '', '']);
+                            con2.query(sqlGroup, (error_category_lang, success_category_lang) => {
+                                console.log(error_category_lang, success_category_lang);
+                                if (success_category_lang.insertId) {
+                                    console.log(success_category_lang, 'category_lang');
+                                } else {
+                                    console.log(error_category_lang);
+                                }
+                            });
+                            for (var i = 1; i < 6; i++) {
+                                const sqlCatGrp = mysql.format(`INSERT INTO twofowg1_jepweb.ps_category_group  
+                                (id_category,id_group)
+                                VALUES
+                                (?, ?)`, [result_anio.insertId, i]);
+
+                                con3.query(sqlCatGrp, (error_category_group, success_category_group) => {
+                                    if (error_category_group) {
+                                        console.log(error_category_group);
+                                    } else {
+                                        console.log(success_category_group, 'category_group');
+                                    }
+                                });
+                            }
+                            const sqlCategoryShop = mysql.format(`
+                                INSERT INTO twofowg1_jepweb.ps_category_shop  
+                                    (ps_category_shop.id_category,ps_category_shop.id_shop,ps_category_shop.position)
+                                VALUES 
+                                    (?, ?, ?)`, [result_anio.insertId, 1, 1]);
+                            con4.query(sqlCategoryShop, (error_category_shop, success_category_shop) => {
+                                console.log(error_category_shop, success_category_shop);
+                                if (success_category_shop.insertId) {
+                                    console.log(success_category_shop, 'category_shop');
+                                } else {
+                                    console.log(error_category_shop);
+                                }
+                            });
+
+                        } else {
+                            console.log('no hay id', result_customer);
+                        }
+
+                    });
                     //console.log('insert anio', esNuevoAnio);
                     // query de insert into ps_category y en el result este sql
                     // INSERT INTO ps_category_lang (id_category, id_shop, id_lang, name, description, link_rewrite, ........)
@@ -402,6 +514,7 @@ function crearNuevos(categorias, productos) {
         });*/
         return Promise.all(promesas);
     });
+    //connection.destroy();
 }
 
 function llenarTablaPro() {
