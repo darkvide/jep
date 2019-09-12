@@ -138,8 +138,8 @@ function actualizaClientes() {
             //cliente => !userEMails.includes(cliente.campoEmailDeEstosRegistros)
         );
         nuevosClientes.forEach(nuevocliente => {
-            connection.query(`INSERT INTO ps_customer (ps_customer.id_shop_group,ps_customer.id_shop,ps_customer.id_gender,ps_customer.id_default_group,ps_customer.id_lang,ps_customer.id_risk,ps_customer.firstname,ps_customer.lastname,ps_customer.email,ps_customer.passwd,ps_customer.date_add,ps_customer.date_upd)
-            VALUES (1,1,0,${nuevocliente.tipind.trim()},1,0,'${nuevocliente.nomcli.trim()}','${nuevocliente.nomcli.trim()}','${nuevocliente.email.trim()}',"$2y$10$FOnZ7jFGGelEUD7GjjEJNey6Vj9CZ0sm4QnOA1lNellHXvFjS4Z.6","${hoy}","${hoy}");
+            connection.query(`INSERT INTO ps_customer (ps_customer.id_shop_group,ps_customer.id_shop,ps_customer.id_gender,ps_customer.id_default_group,ps_customer.id_lang,ps_customer.id_risk,ps_customer.firstname,ps_customer.lastname,ps_customer.email,ps_customer.passwd,ps_customer.active,ps_customer.date_add,ps_customer.date_upd)
+            VALUES (1,1,0,${nuevocliente.tipind.trim()},1,0,'${nuevocliente.nomcli.trim()}','${nuevocliente.nomcli.trim()}','${nuevocliente.email.trim()}',"$2y$10$FOnZ7jFGGelEUD7GjjEJNey6Vj9CZ0sm4QnOA1lNellHXvFjS4Z.6",1,"${hoy}","${hoy}");
             `, (error_customer, result_customer) => {
                 if (error_customer) {
                     console.log(error_customer);
@@ -247,6 +247,7 @@ function actualizarProductos() {
         return { dataProductosSql };
 
     });
+    connection.destroy();
     return dataProductosPromise;
 }
 //const data_1 = actualizarProductos().then();
