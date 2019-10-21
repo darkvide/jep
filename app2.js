@@ -9,22 +9,31 @@ var ftp = new PromiseFtp();
 var Client = require('ftp');
 var port = process.env.PORT || 5000;
 
-const config_sql = {
-    user: 'darkvid',
-    password: '12345',
-    server: '127.0.0.1',
-    database: 'Kdbs_jep',
-    driver: 'tedious',
-    options: {
-        encrypt: false
-    },
-    connectionTimeout: 300000,
-    requestTimeout: 300000,
-    pool: {
-        idleTimeoutMillis: 300000,
-        max: 100
-    }
-};
+/*INICIO DE CONEXIONES*/
+/*CONEXION CON SQL*/
+// const config_sql = {
+//     user: 'darkvid',
+//     password: '12345',
+//     server: '127.0.0.1',
+//     database: 'Kdbs_jep',
+//     driver: 'tedious',
+//     options: {
+//         encrypt: false
+//     },
+//     connectionTimeout: 300000,
+//     requestTimeout: 300000,
+//     pool: {
+//         idleTimeoutMillis: 300000,
+//         max: 100
+//     }
+// };
+/* CONEXION CON MYSQL*/
+// var config_mysql_prod = {
+//     host: "173.231.246.129",
+//     user: "jepimp5_247",
+//     password: "Gih{3x‾FRtrh",
+//     database: "jepimp5_sbox"
+// };
 
 var config_mysql_prod = {
     host: "162.241.224.119",
@@ -33,20 +42,35 @@ var config_mysql_prod = {
     database: "twofowg1_jepweb"
 };
 
-// var config_mysql_prod = {
+var config_sql_mysql = {
+    host: "173.231.246.129",
+    user: "jepimp5_darkvid",
+    password: "De1234567890",
+    database: "jepimp5_categories"
+};
+// var config_sql_mysql = {
 //     host: "173.231.246.129",
-//     user: "jepimp5_jpreues",
-//     password: "xEf;XB2LIMWf",
-//     database: "jepimp5_cmmpje"
+//     user: "jepimp5_247",
+//     password: "Gih{3x‾FRtrh",
+//     database: "jepimp5_categories"
 // };
 
 var connection;
-
+/** PROCESO PARA EVITAR CAIDA DE LA CONEXION MYSQL POR TIMEOUT TOMAR EN CUENTA QUE CUANDO UN QUERY ESTA DENTRO DE OTRO UTILIZAR CADA CON PARA UNA NUEVA CONSULTA
+ * 
+ * EJM
+ * CONNECTION MYSQL(=>{
+ * IF (SUCCESS){
+ *  CON1.CONECTION(SQL.IDINSERTADO)
+ * }
+ * })
+ */
 function handleDisconnect() {
     connection = mysql.createConnection(config_mysql_prod);
     con2 = mysql.createConnection(config_mysql_prod);
     con3 = mysql.createConnection(config_mysql_prod);
     con4 = mysql.createConnection(config_mysql_prod);
+    consql = mysql.createConnection(config_sql_mysql);
     connection.connect(function(err) { // The server is either down
         if (err) { // or restarting (takes a while sometimes).
             console.log('error when connecting to db:', err);
@@ -65,26 +89,44 @@ function handleDisconnect() {
 }
 
 handleDisconnect();
+/**FIN DE CONEXIONES  */
+/**INICIO DE CONSULTAS  */
+// const sqlServerProducts = new Promise((resolve, reject) => {
+//     new sql.ConnectionPool(config_sql).connect().then(pool => {
+//         return pool.request().query(`SELECT codart,codalt,desart,nomart,nomcla,nomfam,marca,coduni,poriva,prec01,prec02,prec03,prec04,codpro,nompro,codfab,ultcos,cospro,exiact,estado
+//         ,modbas
+//         ,codmod
+//         ,numbul FROM kdbs_jep.dbo.web_articulos where estado!=3 and marca is not null and modbas is  not null and codmod is not null `)
+//     }).then(result => {
+//         sql.close();
+//         return resolve(result.recordset);
+//     }).catch(err => {
+//         //res.status(500).send({ message: "${err}" })
+//         sql.close();
+//     });
+// });
 
-const sqlServerProducts = new Promise((resolve, reject) => {
-    new sql.ConnectionPool(config_sql).connect().then(pool => {
-        return pool.request().query(`SELECT codart,codalt,desart,nomart,nomcla,nomfam,marca,coduni,poriva,prec01,prec02,prec03,prec04,codpro,nompro,codfab,ultcos,cospro,exiact,estado
-        ,modbas
-        ,codmod
-        ,numbul FROM kdbs_jep.dbo.web_articulos where estado!=3 and marca is not null and modbas is  not null and codmod is not null `)
-    }).then(result => {
-        sql.close();
-        return resolve(result.recordset);
-    }).catch(err => {
-        //res.status(500).send({ message: "${err}" })
-        sql.close();
-    });
-});
 
 const mysqlProductsPromise = new Promise((resolve, reject) => {
     return connection.query(`
         SELECT * 
-        from twofowg1_jepweb.ps_product 
+        from ps_product 
+        `, (error_product, result_product) => {
+        if (!error_product) {
+            return resolve(JSON.parse(JSON.stringify(result_product)));
+        } else {
+            console.log('ERROR"::::', error_product);
+            return reject([]);
+        }
+    });
+});
+
+const sqlServerProducts = new Promise((resolve, reject) => {
+    return consql.query(`
+    SELECT codart,codalt,desart,nomart,nomcla,nomfam,marca,coduni,poriva,prec01,prec02,prec03,prec04,codpro,nompro,codfab,ultcos,cospro,exiact,estado
+    ,modbas
+    ,codmod
+    ,numbul FROM v_articulos_jep where estado!=3 and marca is not null and modbas is  not null and codmod is not null 
         `, (error_product, result_product) => {
         if (!error_product) {
             return resolve(JSON.parse(JSON.stringify(result_product)));
@@ -101,7 +143,7 @@ const mysqlCategoryPromise = new Promise((resolve, reject) => {
         (
             SELECT cat.id_parent FROM ps_category cat where cat.id_category=cat_lang.id_category limit 1
         ) as id_category
-        from twofowg1_jepweb.ps_category_lang cat_lang 
+        from ps_category_lang cat_lang 
         `, (error_category, result_category) => {
         if (!error_category) {
             return resolve(JSON.parse(JSON.stringify(result_category)));
@@ -112,452 +154,323 @@ const mysqlCategoryPromise = new Promise((resolve, reject) => {
     });
 });
 
-function crearNuevos(categorias, productos) {
-    var m = new Date();
-    var hoy =
-        m.getUTCFullYear() + "-" +
-        ("0" + (m.getUTCMonth() + 1)).slice(-2) + "-" +
-        ("0" + m.getUTCDate()).slice(-2) + " " +
-        ("0" + m.getUTCHours()).slice(-2) + ":" +
-        ("0" + m.getUTCMinutes()).slice(-2) + ":" +
-        ("0" + m.getUTCSeconds()).slice(-2);
-    return new Promise((resolve, reject) => {
-
-        let marcas = categorias.map(categoria => {
-            if (categoria.description) {
-                const temp = categoria.description.split(';');
-                if (temp[0].toString() != '') {
-                    return temp[0].replace(/ /gi, ' ');
-                }
-            }
-        }).filter(marca => marca);
-        marcas = [...new Set(marcas)];
-
-        let referenciaMarcas = {};
-        let modelos = categorias.map(categoria => {
-            if (parseInt(categoria.id_category) == 2) {
-                // marca
-                referenciaMarcas[String(categoria.name).trim() + '_2'] = {
-                    ...categoria
-                };
-            } else {
-                // modelo y anio
-                if (categoria.description) {
-                    const temp = categoria.description.split(';');
-                    if (temp[1] && temp[1].toString() != '') {
-                        referenciaMarcas[String(temp[1]).trim()] = {
-                            ...categoria
-                        };
-                        return temp[1].replace(/ /gi, ' ');
-                    }
-                }
-            }
-        });
-
-        // marca de sqlserver que no esta en las marcas de mysql
-        modelos = [...new Set(modelos)];
 
 
-        let productos_marca = productos.map(producto => {
-            if (producto.marca) {
-                const temp = producto.marca.replace('/', ',').replace(' /', ',').replace('/ ', ',').replace(', ', ',').replace(' ,', ',').split(',');
-                if (temp[0].toString() != '') {
-                    return temp[0];
-                }
-            }
-        }).filter(producto => producto);
 
-        productos_marca = [...new Set(productos_marca)];
+/** INICIO DE INGRESO NUEVAS MARCAS MODELOS Y Aﾃ前S 
+ * CATEGORIAS => tabla category_lang del prestashop (mysql)
+ * PRODUCTOS => tabla productos originario de jep
+ */
 
-        let productos_moldelo = [];
-        let modelosNuevos = [];
-        productos.forEach(producto => {
-            // modelos
-            if (producto.modbas) {
-                const temp = producto.modbas.replace(/\//gi, ',').split(',');
-                temp.forEach(modeloItem => {
-                    const value = String(modeloItem).trim();
-                    if (value && productos_moldelo.indexOf(value) < 0) {
-                        productos_moldelo.push(value);
-                        // validar si es nuevo modelo
-                        if (!referenciaMarcas[value]) {
-                            const datosMarca = Object.keys(referenciaMarcas).find(nombreKey => {
-                                const data = referenciaMarcas[nombreKey];
-                                if (
-                                    String(data.name).trim() == String(producto.marca).trim() ||
-                                    String(data.name).trim() == String(producto.marca).trim() + '_2'
-                                ) {
-                                    return data;
-                                }
-                            });
+function limpiar(cadena) {
+    if (cadena == null || cadena == undefined) {
+        cadena = '';
+    }
+    return String(cadena).trim();
+}
 
-                            console.log('insert into tabla ', value, producto.marca, referenciaMarcas[datosMarca].id_category_lang);
-                            connection.query(`INSERT INTO twofowg1_jepweb.ps_category (ps_category.id_parent,ps_category.id_shop_default,ps_category.level_depth,ps_category.nleft,ps_category.nright,ps_category.active,ps_category.date_add,ps_category.date_upd,ps_category.position,ps_category.is_root_category)
-                             VALUES (${referenciaMarcas[datosMarca].id_category_lang},1,4,4000,40001,1,"${hoy}","${hoy}",0,0);
-                             `, (error_modelo, result_modelo) => {
-                                if (error_modelo) {
-                                    console.log(error_modelo);
-                                    return;
-                                }
-                                if (!error_modelo) {
-                                    const sqlGroup = mysql.format(`
-                                         INSERT INTO twofowg1_jepweb.ps_category_lang  
-                                             (ps_category_lang.id_category,ps_category_lang.id_shop,ps_category_lang.id_lang,ps_category_lang.name,ps_category_lang.description,ps_category_lang.link_rewrite,ps_category_lang.meta_title,ps_category_lang.meta_keywords,ps_category_lang.meta_description)
-                                         VALUES 
-                                             (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [result_modelo.insertId, 1, 1, value.trim(), value.replace(/ /gi, '').trim(), value.toLowerCase().replace(/ /gi, '-').trim(), '', '', '']);
-                                    con2.query(sqlGroup, (error_category_lang, success_category_lang) => {
-                                        console.log(error_category_lang, success_category_lang);
-                                        if (success_category_lang.insertId) {
-                                            console.log(success_category_lang, 'category_lang');
-                                        } else {
-                                            console.log(error_category_lang);
-                                        }
-                                    });
-                                    for (var i = 1; i < 6; i++) {
-                                        const sqlCatGrp = mysql.format(`INSERT INTO twofowg1_jepweb.ps_category_group  
-                                         (id_category,id_group)
-                                         VALUES
-                                         (?, ?)`, [result_modelo.insertId, i]);
+var m = new Date();
+var hoy =
+    m.getUTCFullYear() + "-" +
+    ("0" + (m.getUTCMonth() + 1)).slice(-2) + "-" +
+    ("0" + m.getUTCDate()).slice(-2) + " " +
+    ("0" + m.getUTCHours()).slice(-2) + ":" +
+    ("0" + m.getUTCMinutes()).slice(-2) + ":" +
+    ("0" + m.getUTCSeconds()).slice(-2);
 
-                                        con3.query(sqlCatGrp, (error_category_group, success_category_group) => {
-                                            if (error_category_group) {
-                                                console.log(error_category_group);
-                                            } else {
-                                                console.log(success_category_group, 'category_group');
-                                            }
-                                        });
-                                    }
-                                    const sqlCategoryShop = mysql.format(`
-                                         INSERT INTO twofowg1_jepweb.ps_category_shop  
-                                             (ps_category_shop.id_category,ps_category_shop.id_shop,ps_category_shop.position)
-                                         VALUES 
-                                             (?, ?, ?)`, [result_modelo.insertId, 1, 1]);
-                                    con4.query(sqlCategoryShop, (error_category_shop, success_category_shop) => {
-                                        console.log(error_category_shop, success_category_shop);
-                                        if (success_category_shop.insertId) {
-                                            console.log(success_category_shop, 'category_shop');
-                                        } else {
-                                            console.log(error_category_shop);
-                                        }
-                                    });
+async function crearNuevos(categoriasMysql, productosSqlServer) {
+    const nombresMarcas = [];
+    const marcas = categoriasMysql.filter(marca => limpiar(marca.description) === '' && marca.id_category == 2).map(marca => {
+        nombresMarcas.push(limpiar(marca.name));
+        return {
+            ...marca,
+            name: limpiar(marca.name),
+            description: limpiar(marca.description)
+        };
+    });
 
-                                } else {
-                                    console.log('no hay id', result_customer);
-                                }
+    const nuevasMarcasPromises = [];
 
-                            });
-                        }
-                    }
-                });
-            } // fin modelos
-
-            // anio
-            if (producto.codmod) {
-                const removeEspacios = (value) => {
-                    return String(value).trim();
-                };
-                // sacar el rango
-                const tempAnios = removeEspacios(producto.codmod).split('/');
-
-                let rangos = [];
-                if (removeEspacios(tempAnios[1]) != '') {
-                    // es un rango
-                    let ini = parseInt(removeEspacios(tempAnios[0]));
-                    const lengthAnios = parseInt(removeEspacios(tempAnios[1])) - ini;
-                    rangos = Array.from({ length: lengthAnios + 1 }, (_, i) => ini + i);
-                } else {
-                    // es unico
-                    if (removeEspacios(tempAnios[0]) == 'UNIVERSAL') {
-                        // rangos.push(0); // TODO: es universal
-                    } else {
-                        rangos.push(parseInt(removeEspacios(tempAnios[0])));
-                    }
-                }
-
-                let esNuevoAnio = null;
-                Object.keys(referenciaMarcas).find(nombreMarca => {
-                    const data = referenciaMarcas[nombreMarca];
-                    const modelo = removeEspacios(data.description).split(';')[1] || '';
-                    if (
-                        producto.modbas == removeEspacios(modelo) &&
-                        producto.marca == nombreMarca
-                    ) {
-                        const anioMysql = parseInt(data.name);
-                        const id_modelo = parseInt(data.id_category_lang);
-                        const inicioRango = parseInt(rangos[0]);
-                        const finRango = parseInt(rangos[rangos.length - 1]);
-
-                        if (anioMysql >= inicioRango && anioMysql <= finRango) {
-                            // nuevoAnio = true;
-                        } else {
-                            if (producto.codmod == data.name) {
-                                // nuevoAnio = true;
-                            } else {
-                                esNuevoAnio = {
-                                    marca: nombreMarca,
-                                    modelo: modelo,
-                                    id_modelo,
-                                    anio: anioMysql,
-                                    inicioRango: inicioRango,
-                                    finRango: finRango,
-                                    rangos: rangos
-                                };
-
-                            }
-                        }
-                    }
-                });
-                if (esNuevoAnio) {
-                    console.log('insert anio', esNuevoAnio);
-                    connection.query(`INSERT INTO twofowg1_jepweb.ps_category (ps_category.id_parent,ps_category.id_shop_default,ps_category.level_depth,ps_category.nleft,ps_category.nright,ps_category.active,ps_category.date_add,ps_category.date_upd,ps_category.position,ps_category.is_root_category)
-                    VALUES (${esNuevoAnio.id_modelo},1,4,4000,40001,1,"${hoy}","${hoy}",0,0);
-                    `, (error_anio, result_anio) => {
-                        if (error_anio) {
-                            console.log(error_anio);
-                            return;
-                        }
-                        if (!error_anio) {
-                            const sqlGroup = mysql.format(`
-                                INSERT INTO twofowg1_jepweb.ps_category_lang  
+    productosSqlServer.map(producto => {
+        const nombreMarcas = limpiar(producto.marca).replace(/\//gi, ',').split(',');
+        nombreMarcas
+            .map(item => limpiar(item))
+            .forEach(item => {
+                if (nombresMarcas.indexOf(item) < 0) {
+                    const pr = new Promise((resolve, reject) => {
+                        const sql = `INSERT INTO ps_category 
+                            (ps_category.id_parent,ps_category.id_shop_default,ps_category.level_depth,ps_category.nleft,ps_category.nright,ps_category.active,ps_category.date_add,ps_category.date_upd,ps_category.position,ps_category.is_root_category)
+                            VALUES
+                            (2,1,4,4000,40001,1,"${hoy}","${hoy}",0,0);
+                        `;
+                        connection.query(sql, (errorInsertMarca, insertMarca) => {
+                            if (!errorInsertMarca) {
+                                const sqlCategoryLang = `
+                                INSERT INTO ps_category_lang  
                                     (ps_category_lang.id_category,ps_category_lang.id_shop,ps_category_lang.id_lang,ps_category_lang.name,ps_category_lang.description,ps_category_lang.link_rewrite,ps_category_lang.meta_title,ps_category_lang.meta_keywords,ps_category_lang.meta_description)
                                 VALUES 
                                     (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                    
-                                    `, [result_anio.insertId, 1, 1, esNuevoAnio.anio, esNuevoAnio.marca + ';' + esNuevoAnio.modelo + ';' + esNuevoAnio.anio, esNuevoAnio.anio, '', '', '']);
-                            con2.query(sqlGroup, (error_category_lang, success_category_lang) => {
-                                console.log(error_category_lang, success_category_lang);
-                                if (success_category_lang.insertId) {
-                                    console.log(success_category_lang, 'category_lang');
-                                } else {
-                                    console.log(error_category_lang);
-                                }
-                            });
-                            for (var i = 1; i < 6; i++) {
-                                const sqlCatGrp = mysql.format(`INSERT INTO twofowg1_jepweb.ps_category_group  
-                                (id_category,id_group)
-                                VALUES
-                                (?, ?)`, [result_anio.insertId, i]);
-
-                                con3.query(sqlCatGrp, (error_category_group, success_category_group) => {
-                                    if (error_category_group) {
-                                        console.log(error_category_group);
-                                    } else {
-                                        console.log(success_category_group, 'category_group');
-                                    }
+                                `;
+                                con2.query(sqlCategoryLang, [insertMarca.insertId, 1, 1, item, '', item.toLowerCase(), '', '', ''], (errorCategoryLang, insertCagegoryLang) => {
+                                    marcas.push({
+                                        id_category_lang: insertMarca.insertId,
+                                        name: item,
+                                        description: '',
+                                        id_category: 2
+                                    });
+                                    resolve({
+                                        id_category_lang: insertMarca.insertId,
+                                        name: item,
+                                        description: '',
+                                        id_category: 2
+                                    });
                                 });
                             }
-                            const sqlCategoryShop = mysql.format(`
-                                INSERT INTO twofowg1_jepweb.ps_category_shop  
-                                    (ps_category_shop.id_category,ps_category_shop.id_shop,ps_category_shop.position)
-                                VALUES 
-                                    (?, ?, ?)`, [result_anio.insertId, 1, 1]);
-                            con4.query(sqlCategoryShop, (error_category_shop, success_category_shop) => {
-                                console.log(error_category_shop, success_category_shop);
-                                if (success_category_shop.insertId) {
-                                    console.log(success_category_shop, 'category_shop');
-                                } else {
-                                    console.log(error_category_shop);
-                                }
-                            });
-
-                        } else {
-                            console.log('no hay id', result_customer);
-                        }
-
-                    });
-                    //console.log('insert anio', esNuevoAnio);
-                    // query de insert into ps_category y en el result este sql
-                    // INSERT INTO ps_category_lang (id_category, id_shop, id_lang, name, description, link_rewrite, ........)
-                    // SELECT * FROM (${id_category}, 1, 1, '${esNuevoAnio.anio}') AS tmp
-                    // WHERE NOT EXISTS (
-                    //     SELECT id_category FROM ps_category_lang WHERE name = '${esNuevoAnio.anio}' and  description = '${esNuevoAnio.marca};${esNuevoAnio.modelo};${esNuevoAnio.anio}'
-                    // ) LIMIT 1;
-                }
-            }
-
-        });
-        return;
-
-        productos_moldelo = [...new Set(productos_moldelo)];
-        return;
-
-        let productos_anio = productos.map(producto => {
-            if (producto.codmod) {
-                const temp = producto.codmod.replace('/', ',').replace(' /', ',').replace('/ ', ',').replace(', ', ',').replace(' ,', ',').split(',');
-                if (temp[0].toString() != '') {
-                    return temp[0];
-                }
-            }
-        }).filter(producto => producto);
-
-        productos_anio = [...new Set(productos_anio)];
-
-        // const prodnuevo = [];
-        // const productosNoExisten = productos.filter(producto => {
-        //     const prodcomparador = `${producto.marca.trim()};${producto.modbas.trim()};${producto.codmod.trim()}`;
-        //     return {
-        //         ...producto,
-        //         modelo_nuevo: acomparar.find(pm => {
-        //             if (pm.replace(/ /ig, '') == prodcomparador.replace(/ /ig, '')) {
-        //                 console.log(pm, '|dark');
-        //                 prodnuevo.push(pm);
-        //             }
-        //             return prodnuevo;
-        //         })
-        //     };
-
-        // });
-
-        // console.log(productosNoExisten, 'stark');
-        // return;
-
-
-        const promesas = productos_moldelo.map(producto => {
-            console.log(modelos.indexOf(producto) < 0, producto);
-            if (modelos.indexOf(producto) < 0) {
-                const productosNoExisten = productos.filter(producto => {
-                    const prodcomparador = `${producto.marca.trim()};${producto.modbas.trim()};${producto.codmod.trim()}`;
-                    return {
-                        ...producto,
-                        modelo_nuevo: acomparar.find(pm => {
-                            if (pm.replace(/ /ig, '') == prodcomparador.replace(/ /ig, '')) {
-                                console.log(pm, '|dark');
-                                prodnuevo.push(pm);
-                            }
-                            return prodnuevo;
-                        })
-                    };
-
-                });
-            }
-            return;
-            if (modelos.indexOf(producto) < 0) {
-                modelos.push(producto);
-                console.log(`INSERT INTO twofowg1_jepweb.ps_category (ps_category.id_parent,ps_category.id_shop_default,ps_category.level_depth,ps_category.nleft,ps_category.nright,ps_category.active,ps_category.date_add,ps_category.date_upd,ps_category.position,ps_category.is_root_category)
-                VALUES (1,1,4,4000,40001,1,"${hoy}","${hoy}",0,0);
-                `);
-                connection.query(`INSERT INTO twofowg1_jepweb.ps_category (ps_category.id_parent,ps_category.id_shop_default,ps_category.level_depth,ps_category.nleft,ps_category.nright,ps_category.active,ps_category.date_add,ps_category.date_upd,ps_category.position,ps_category.is_root_category)
-                VALUES (1,1,4,4000,40001,1,"${hoy}","${hoy}",0,0);
-                `, (error_marca, result_marca) => {
-                    if (error_marca) {
-                        console.log(error_marca);
-                        return;
-                    }
-                    if (!error_marca) {
-
-                        const sqlGroup = mysql.format(`
-                            INSERT INTO twofowg1_jepweb.ps_category_lang  
-                                (ps_category_lang.id_category,ps_category_lang.id_shop,ps_category_lang.id_lang,ps_category_lang.name,ps_category_lang.description,ps_category_lang.link_rewrite,ps_category_lang.meta_title,ps_category_lang.meta_keywords,ps_category_lang.meta_description)
-                            VALUES 
-                                (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [result_marca.insertId, 1, 1, producto.marca.trim(), '', '', '', '', '']);
-                        con2.query(sqlGroup, (error_category_lang, success_category_lang) => {
-                            console.log(error_category_lang, success_category_lang);
-                            if (success_category_lang.insertId) {
-                                console.log(success_category_lang, 'category_lang');
-                            } else {
-                                console.log(error_category_lang);
-                            }
                         });
-                        for (var i = 1; i < 6; i++) {
-                            const sqlCatGrp = mysql.format(`INSERT INTO twofowg1_jepweb.ps_category_group  
-                            (id_category,id_group)
-                            VALUES
-                            (?, ?)`, [result_marca.insertId, i]);
-
-                            con3.query(sqlCatGrp, (error_category_group, success_category_group) => {
-                                if (error_category_group) {
-                                    console.log(error_category_group);
-                                } else {
-                                    console.log(success_category_group, 'category_group');
-                                }
-                            });
-                        }
-                        const sqlCategoryShop = mysql.format(`
-                            INSERT INTO twofowg1_jepweb.ps_category_shop  
-                                (ps_category_shop.id_category,ps_category_shop.id_shop,ps_category_shop.position)
-                            VALUES 
-                                (?, ?, ?)`, [result_marca.insertId, 1, 1]);
-                        con4.query(sqlCategoryShop, (error_category_shop, success_category_shop) => {
-                            console.log(error_category_shop, success_category_shop);
-                            if (success_category_shop.insertId) {
-                                console.log(success_category_shop, 'category_shop');
-                            } else {
-                                console.log(error_category_shop);
-                            }
-                        });
-
-                    } else {
-                        console.log('no hay id', result_customer);
-                    }
-
-                });
-
-                console.log('insertar ', producto.marca, producto.codmod, producto.modbas);
-            }
-        });
-        //filtrado de modelos
-        // const modelos = productos_moldelo.map(producto => {
-        //     console.log(modelos.indexOf(producto) < 0, producto);
-
-        // });
-
-        /*/ marca de sqlserver que no esta en las marcas de mysql
-        const promesas = productos.map(producto => {
-            if (modelos.indexOf(producto.codmod) < 0) {
-                return new Promise((resolvePromise, rejectPromise) => {
-                    mysql.query('insert into ......', (e, ex) => {
-                        return resolvePromise();
                     });
-                });
-                // console.log('insertar ', producto.marca, producto.codmod, producto.modbas);
-            }
-        });*/
-        return Promise.all(promesas);
+                    nuevasMarcasPromises.push(pr);
+                }
+            });
     });
-    //connection.destroy();
+
+    const idsMarcasInsertadas = await Promise.all(nuevasMarcasPromises);
+    const modeloMarcas = await crearModelos(categoriasMysql, productosSqlServer, marcas);
+    const listaAniosMysql = crearAnios(modeloMarcas, categoriasMysql, productosSqlServer, marcas);
+    return Promise.resolve([productosSqlServer, listaAniosMysql]);
 }
 
-function llenarTablaPro() {
-    v_articulos_jep
+async function crearModelos(categoriasMysql, productosSqlServer, marcas) {
+    const modeloMarca = {};
+    productosSqlServer.forEach(modelo => {
+        let itemModelos = [];
+        if (modelo.modbas.indexOf('A/C') >= 0) {
+            itemModelos = modelo.modbas.split(',');
+        } else {
+            itemModelos = modelo.modbas.replace(/\//gi, ',').split(',');
+        }
+        if (itemModelos)
+            itemModelos.forEach(item => {
+                modeloMarca[limpiar(item)] = modelo.marca;
+            });
+    });
+
+    // sacar los modelos del sql server
+    const nombresModelosSqlServer = [];
+    [...new Set(productosSqlServer.map(producto => limpiar(producto.modbas)))]
+    .map(modelo => {
+        let itemModelos = [];
+        if (modelo.indexOf('A/C') >= 0) {
+            itemModelos = modelo.split(',');
+        } else {
+            itemModelos = modelo.replace(/\//gi, ',').split(',');
+        }
+        itemModelos.forEach(item => {
+            nombresModelosSqlServer.push(limpiar(item));
+        });
+    });
+    const modelosNoDuplicadosSSQL = [...new Set(nombresModelosSqlServer.filter(m => m))];
+
+    const nombresModelos = [];
+    const modelos = [];
+
+    categoriasMysql
+        .filter(item => limpiar(item.description) == '' && item.id_category != 2)
+        .map(categoria => ({...categoria, name: limpiar(categoria.name) }))
+        .map(categoria => {
+            nombresModelos.push(categoria.name);
+            modelos.push(categoria);
+        });
+    // validar cual de sqlServer no existe en mysql
+    const nuevosModelosPorInsertar = modelosNoDuplicadosSSQL.filter(item => nombresModelos.indexOf(item) < 0);
+    // insertar los que no existen
+    let prs = [];
+    prs = nuevosModelosPorInsertar.map(modelo => {
+        return new Promise((resolve, reject) => {
+            const marcaDatos = marcas.find(marca => marca.name == modeloMarca[modelo]);
+            const sql = `
+                INSERT INTO ps_category
+                    (ps_category.id_parent,ps_category.id_shop_default,ps_category.level_depth,ps_category.nleft,ps_category.nright,ps_category.active,ps_category.date_add,ps_category.date_upd,ps_category.position,ps_category.is_root_category)
+                VALUES
+                    (${marcaDatos.id_category_lang}, 1, 4, 4000, 40001, 1,"${hoy}","${hoy}",0,0)`;
+            con2.query(sql, (errorInsertModelo, insertModelo) => {
+                if (!errorInsertModelo) {
+                    con2.query(`INSERT INTO ps_category_lang  
+                        (ps_category_lang.id_category,ps_category_lang.id_shop,ps_category_lang.id_lang,ps_category_lang.name,ps_category_lang.description,ps_category_lang.link_rewrite,ps_category_lang.meta_title,ps_category_lang.meta_keywords,ps_category_lang.meta_description)
+                    VALUES 
+                        (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [insertModelo.insertId, 1, 1, modelo, '', modelo.toLowerCase(), '', '', ''],
+                        (error_category_lang, success_category_lang) => {
+                            if (error_category_lang) {
+                                console.log('error: ', insertModelo.insertId, modelo);
+                            } else {
+                                const modeloData = {
+                                    id_category_lang: insertModelo.insertId,
+                                    name: modelo,
+                                    description: '',
+                                    id_category: marcaDatos.id_category_lang
+                                };
+                                return resolve(modeloData);
+                            }
+                        });
+                }
+            });
+        });
+    });
+    const nuevosModelosInsertados = await Promise.all(prs);
+    return Promise.resolve([modeloMarca, [...modelos, ...nuevosModelosInsertados]]);
 }
 
-idsProductosPromise = Promise.all([sqlServerProducts, mysqlCategoryPromise, mysqlProductsPromise]).then(results => {
-    let productos = results[0];
+function crearAnios(modeloMarcas, categoriasMysql, productosSqlServer, marcas) {
+    let ini = 0;
+    let fin = 0;
+    const listaAnios = [];
+    let prsAnios = [];
+    // lista de anios de sqlserver
+    productosSqlServer.map(producto => {
+        const nombreMarcas = limpiar(producto.marca).replace(/\//gi, ',').split(',');
+        let ultimaMarca = nombreMarcas[0];
+        const modelo = limpiar(producto.modbas);
+        let itemModelos = [];
+        if (modelo.indexOf('A/C') >= 0) {
+            itemModelos = modelo.split(',');
+        } else {
+            itemModelos = modelo.replace(/\//gi, ',').split(',');
+        }
+        itemModelos.filter(m => limpiar(m)).forEach((modeloItem, indexModelo) => {
+            if (limpiar(nombreMarcas[indexModelo]) != '') {
+                ultimaMarca = limpiar(nombreMarcas[indexModelo]);
+            }
+            modeloItem = limpiar(modeloItem);
+            const anio = limpiar(producto.codmod);
+            const rangoSplit = anio.split('/');
+            if (rangoSplit[0] != 'UNIVERSAL') {
+                if (rangoSplit.length > 1) {
+                    if (parseInt(rangoSplit[0]) >= parseInt(rangoSplit[1])) {
+                        ini = parseInt(rangoSplit[1]);
+                        fin = parseInt(rangoSplit[0]);
+                    } else {
+                        ini = parseInt(rangoSplit[0]);
+                        fin = parseInt(rangoSplit[1]);
+                    }
+                } else {
+                    ini = parseInt(rangoSplit[0]);
+                    fin = parseInt(rangoSplit[0]);
+                }
+                for (var i = ini; i <= fin; i++) {
+                    const dato = {
+                        marca: ultimaMarca,
+                        modelo: modeloItem,
+                        codmod: producto.codmod,
+                        description: `${ultimaMarca};${modeloItem};${producto.codmod}`,
+                        anio: i,
+                        rango: `${ini}/${fin}`
+                    };
+                    const exists = listaAnios.findIndex(item => item.description == dato.description && item.anio == dato.anio);
+                    if (exists < 0) {
+                        listaAnios.push(dato);
+                    }
+                }
+            }
+        });
+    });
+    /* ejemplo item listaAnios
+    { 
+        marca: 'CHEVROLET',
+        modelo: 'CORSA',
+        codmod: '1996/ 2000',
+        description: 'CHEVROLET;CORSA;1996/ 2000',
+        anio: 2000,
+        rango: '1996/2000'
+    } */
+    const listadoAniosMysql = [];
+    categoriasMysql
+        .filter(item => limpiar(item.description) != '')
+        .forEach(categoria => {
+            const descrioptionSplit = limpiar(categoria.description).split(';');
+            const anioMysql = `${descrioptionSplit[0] || ''}${(descrioptionSplit[1] ? ';' + descrioptionSplit[1] : '')}`
+            listadoAniosMysql.push({
+                ...categoria,
+                marcaModelo: anioMysql,
+                anio: categoria.name,
+            });
+        });
+    // sacar lo que este en sqlserver que no este en mysql
+    listaAnios.map(anioSqlServer => {
+        const anioExists = listadoAniosMysql
+            .find(anio =>
+                anio.marcaModelo == anioSqlServer.marca + ';' + anioSqlServer.modelo &&
+                anioSqlServer.anio == anio.anio
+            );
+        if (!anioExists) {
+            // insertar los anios que no existen
+            const findModelo = modeloMarcas[1].find(itemMod => itemMod.name == anioSqlServer.modelo);
+            const sqlAnios = `
+                INSERT INTO ps_category 
+                    (ps_category.id_parent,ps_category.id_shop_default,ps_category.level_depth,ps_category.nleft,ps_category.nright,ps_category.active,ps_category.date_add,ps_category.date_upd,ps_category.position,ps_category.is_root_category)
+                VALUES 
+                    (${findModelo.id_category_lang},1,4,4000,40001,1,"${hoy}","${hoy}",0,0);
+            `;
+            connection.query(sqlAnios, (eerorAnios, successAnios) => {
+                if (!eerorAnios) {
+                    const sqlCategorylangAnios = `
+                        INSERT INTO ps_category_lang  
+                            (ps_category_lang.id_category,ps_category_lang.id_shop,ps_category_lang.id_lang,ps_category_lang.name,ps_category_lang.description,ps_category_lang.link_rewrite,ps_category_lang.meta_title,ps_category_lang.meta_keywords,ps_category_lang.meta_description)
+                        VALUES 
+                            (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `;
+                    con2.query(
+                        sqlCategorylangAnios, [successAnios.insertId, 1, 1, anioSqlServer.anio, anioSqlServer.marca + ';' + anioSqlServer.modelo + ';' + anioSqlServer.rango, anioSqlServer.anio, '', '', ''],
+                        (errorAniosLang, insertLangAnios) => {
+                            if (errorAniosLang) {
+                                console.log(errorAniosLang);
+                            }
+                        }
+                    );
+                }
+            });
+        }
+    });
+    return listadoAniosMysql;
+}
+
+/** FIN DE INGRESO NUEVAS MARCAS MODELOS Y Aﾃ前S */
+
+
+idsProductosPromise = Promise.all([sqlServerProducts, mysqlCategoryPromise, mysqlProductsPromise]).then(async(results) => {
+    let productosSqlServer = results[0];
     let categorias = results[1] || [];
-    let productosmysql = results[2];
-    let familiacategorias;
 
-    const nuevosPromise = crearNuevos(categorias, productos);
-    Promise.all([nuevosPromise, mysqlProductsPromise]).then((productosActualizados) => {
+    // let productosmysql = results[2];
+    // let familiacategorias;
+
+    const nuevosPromise = crearNuevos(categorias, productosSqlServer);
+
+    const productos = await Promise.all([nuevosPromise, mysqlProductsPromise]).then((productosActualizados) => {
         // listar nuevamente los productos
         const productReference = productosActualizados[1].map(
             ean => ean.reference
         );
-        const nuevosproductos = productos.filter(
+        const nuevosproductos = productosActualizados[0][0].filter(
             producto => !productReference.includes(producto.codart.trim())
             //cliente => !userEMails.includes(cliente.campoEmailDeEstosRegistros)
         );
-        productos = nuevosproductos.map(producto => {
+        const categoryLang = productosActualizados[0][1];
+
+        const productos = nuevosproductos.map(producto => {
             return {
                 ...producto,
-                categorias: categorias.filter(categoria =>
-                    `${producto.marca};${producto.modbas};${producto.codmod}`.toLowerCase().replace(/ /gi, '') === categoria.description.toLowerCase().replace(/ /gi, '')
-                ).map(categoria => categoria.id_category).join(','),
-                familiacategorias: categorias.filter(categoria =>
-                        `${producto.nomfam.toLowerCase().replace(/ /gi, '')};${producto.nomcla.toLowerCase().replace(/ /gi, '')}` === categoria.description.toLowerCase().replace(/ /gi, '')
-                    ).map(categoria => categoria.id_category).join(',')
-                    /*categorias: categorias.filter(categoria => {
-                        console.log(
-                            `${producto.codart.toLowerCase().replace(/ /gi, '')};${producto.nomfam.toLowerCase().replace(/ /gi, '')};${producto.nomcla.toLowerCase().replace(/ /gi, '')}`,
-                            categoria.description.toLowerCase().replace(/ /gi, '')
-                        );
-                        return `${producto.nomfam.toLowerCase().replace(/ /gi, '')};${producto.nomcla.toLowerCase().replace(/ /gi, '')}` ===
-                            categoria.description.toLowerCase().replace(/ /gi, '')
-                    })*/
+                categorias: [...new Set(categoryLang.filter(categoria =>
+                    String(`${producto.marca};${producto.modbas};${producto.codmod}`).toLowerCase().replace(/ /gi, '') === categoria.description.toLowerCase().replace(/ /gi, '')
+                ).map(categoria => categoria.id_category))].join(','),
+                familiacategorias: [...new Set(categoryLang.filter(categoria =>
+                    `${producto.nomfam.toLowerCase().replace(/ /gi, '')};${producto.nomcla.toLowerCase().replace(/ /gi, '')}` === categoria.description.toLowerCase().replace(/ /gi, '')
+                ).map(categoria => categoria.id_category))].join(',')
             };
         });
-
+        return productos;
     });
+
+    console.log('productos', productos.length);
+
 
     const columns = [
         { name: 'col1', label: 'Product ID' }, //null
@@ -619,6 +532,7 @@ idsProductosPromise = Promise.all([sqlServerProducts, mysqlCategoryPromise, mysq
         { name: 'col58', label: 'Warehouse' } //0
     ];
     var productosFlat = [];
+    
     productos.filter(producto => producto.marca && producto.modbas).forEach(producto => {
         // split modbas for iterate in more lines
 
@@ -637,8 +551,8 @@ idsProductosPromise = Promise.all([sqlServerProducts, mysqlCategoryPromise, mysq
 
     });
 
-    const rows = productosFlat.map(producto => {
-        //console.log(producto.codart, 'dark ', producto.familiacategorias);
+     const rows = productosFlat.map(producto => {
+    //const rows = productosSqlServer.map(producto => { descomentar esta linea si se desea el csv de todos los productos solo esta linea y comentar la linea anterior
         if (producto.codfab && producto.codfab != null) {
             var codigoFabrica = producto.codfab.trim();
         }
@@ -664,14 +578,14 @@ idsProductosPromise = Promise.all([sqlServerProducts, mysqlCategoryPromise, mysq
         }
         return {
             ...producto,
-            col1: 'NULL',
-            col2: '1',
-            col3: `${producto.nomcla} ${producto.marca} ${producto.modbas} ${nombreLado}`,
+            col1: ``,
+            col2: 1,
+            col3: `${mombreClase} ${producto.marca} ${producto.modbas} ${nombreLado}`,
             col4: `${producto.categorias},${producto.familiacategorias}`,
             col5: `${producto.prec01}`,
-            col6: `1`,
-            col7: `0`,
-            col8: `1`,
+            col6: 1,
+            col7: 0,
+            col8: 1,
             col9: ``,
             col10: ``,
             col11: `${producto.marca}`,
@@ -688,7 +602,7 @@ idsProductosPromise = Promise.all([sqlServerProducts, mysqlCategoryPromise, mysq
             col23: ``,
             col24: ``,
             col25: `${producto.exiact}`,
-            col26: `1`,
+            col26: 1,
             col27: ``,
             col28: ``,
             col29: ``,
@@ -709,21 +623,21 @@ idsProductosPromise = Promise.all([sqlServerProducts, mysqlCategoryPromise, mysq
             col44: ``,
             col45: `https://jepimportaciones.com.ec/img/p/productos/${codigoProducto}.jpg`,
             col46: ``,
-            col47: `1`,
+            col47: 1,
             col48: `CATEGORIA:${producto.nomfam}:0,SUBCATEGORIA:${mombreClase}:1`,
-            col49: `0`,
+            col49: 0,
             col50: `new`,
-            col51: `0`,
-            col52: `0`,
-            col53: `0`,
-            col54: `0`,
-            col55: `0`,
-            col56: `0`,
-            col57: `0`,
-            col58: `0`,
+            col51: 0,
+            col52: 0,
+            col53: 0,
+            col54: 0,
+            col55: 0,
+            col56: 0,
+            col57: 0,
+            col58: 0,
         };
     });
-    //generateCsv(columns, rows, 'productos-jep.csv').then(result => console.log(result));
+    generateCsv(columns, rows, 'productos-jep.csv').then(result => console.log(result));
 });
 
 function generateCsv(columns, rows, fileName) {
@@ -733,13 +647,14 @@ function generateCsv(columns, rows, fileName) {
             headers: true,
             quoteColumns: true,
             quoteHeaders: true,
+            delimiter: ';',
+            quote: ""
         });
 
-        //const writableStream = fs.createWriteStream(`${filePathFromRoot}${fileName}`, {
-        const writableStream = fs.createWriteStream(`${fileName}`, {
+        const writableStream = fs.createWriteStream(`${filePathFromRoot}${fileName}`, {
+            //const writableStream = fs.createWriteStream(`${fileName}`, {
             encoding: 'utf8',
         });
-
         csvStream.pipe(writableStream);
         // prepare data to get the same format as view
         const csvHeaders = columns.map(col => col.label);
@@ -761,13 +676,13 @@ function generateCsv(columns, rows, fileName) {
             var c = new Client();
             c.on('ready', function() {
                 c.put(fileName, fileName, function(err) {
-                    console.log(fileName);
+                    //console.log(fileName);
                     if (err) throw err;
                     c.end();
                 });
             });
             // connect to localhost:21 as anonymous
-            c.connect();
+            //c.connect();
             //c.connect({ host: 'jepimportaciones.com.ec', port: 21, secure: false, secureOptions: '', user: 'product_ftp_247@jepimportaciones.com.ec', password: 'd@c;ap={.gXu' });
             //ftp.connect({ host: '247.com.ec', user: 'destrella@247.com.ec', password: 'De1234567890' })
             /*ftp.connect({ host: 'jepimportaciones.com.ec', user: 'product_ftp_247@jepimportaciones.com.ec', password: 'd@c;ap={.gXu' })
