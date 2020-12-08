@@ -6,7 +6,7 @@
     "dependencies": {
         "express": "^4.16.4",
         "express-fileupload": "^1.1.5",
-        "fast-csv": "^3.0.1",
+        "fast-csv": "^4.3.6",
         "ftp": "^0.3.10",
         "ftp-client": "^0.2.2",
         "mssql": "^5.1.0",
